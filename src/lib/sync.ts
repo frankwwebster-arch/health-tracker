@@ -27,8 +27,10 @@ function isEmptyDay(data: DayData): boolean {
     dexTaken &&
     bupropionTaken &&
     !d.lunchEaten &&
+    Object.keys(d.lunchItemCounts ?? {}).length === 0 &&
     !d.smoothieEaten &&
     (d.smoothieFoods?.length ?? 0) === 0 &&
+    Object.keys(d.smoothieFoodWeights ?? {}).length === 0 &&
     !d.snackEaten &&
     d.waterMl === 0 &&
     d.workoutMinutes == null &&
