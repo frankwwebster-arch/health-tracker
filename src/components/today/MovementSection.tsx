@@ -12,8 +12,9 @@ interface Props {
 }
 
 export function MovementSection({ data, update }: Props) {
-  const isPreset = data.workoutMinutes != null && PRESET_MINS.includes(data.workoutMinutes as (typeof PRESET_MINS)[number]);
-  const isCustom = data.workoutMinutes != null && !isPreset;
+  const hasWorkout = data.workoutMinutes != null;
+  const isPreset = hasWorkout && PRESET_MINS.includes(data.workoutMinutes as (typeof PRESET_MINS)[number]);
+  const isCustom = hasWorkout && !isPreset;
 
   return (
     <section className="mb-10">
@@ -23,7 +24,7 @@ export function MovementSection({ data, update }: Props) {
       <div className="space-y-3">
         <div
           className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
-            data.workoutMinutes != null ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+            hasWorkout ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
           }`}
         >
           <p className="font-medium text-gray-800 mb-3">Workout</p>
@@ -55,8 +56,16 @@ export function MovementSection({ data, update }: Props) {
                 </label>
               );
             })}
-            <label className="flex items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border border-border bg-white/80">
-              <span className="text-muted shrink-0">Other:</span>
+            <label
+              className={`flex items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                isCustom
+                  ? "bg-accent text-white border-accent shadow-sm"
+                  : "border-border bg-white/80"
+              }`}
+            >
+              <span className={isCustom ? "text-white/90 shrink-0" : "text-muted shrink-0"}>
+                Other:
+              </span>
               <input
                 type="number"
                 min={1}
@@ -72,11 +81,15 @@ export function MovementSection({ data, update }: Props) {
                     update((prev) => ({ ...prev, workoutMinutes: n }));
                   }
                 }}
-                className="w-16 rounded-lg border-0 bg-transparent px-1 py-0 text-gray-800 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className={`w-16 rounded-lg border-0 bg-transparent px-1 py-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  isCustom
+                    ? "text-white placeholder:text-white/70"
+                    : "text-gray-800"
+                }`}
               />
             </label>
           </div>
-          {data.workoutMinutes != null && (
+          {hasWorkout && (
             <button
               type="button"
               onClick={() => update((prev) => ({ ...prev, workoutMinutes: null }))}
@@ -86,7 +99,11 @@ export function MovementSection({ data, update }: Props) {
             </button>
           )}
         </div>
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            data.walkDone ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Walk / steps done</p>
@@ -101,21 +118,21 @@ export function MovementSection({ data, update }: Props) {
                   update((prev) => ({ ...prev, walkDone: false }))
                 }
                 className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
-            >
-              Undo
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() =>
-                update((prev) => ({ ...prev, walkDone: true }))
-              }
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
-            >
-              Mark done
-            </button>
-          )}
-        </div>
+              >
+                Undo
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  update((prev) => ({ ...prev, walkDone: true }))
+                }
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Mark done
+              </button>
+            )}
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <label htmlFor="steps" className="text-sm text-muted shrink-0">
               Steps:
