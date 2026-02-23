@@ -58,6 +58,9 @@ interface Props {
 export function FoodWaterSection({ data, settings, update }: Props) {
   const goal = settings?.waterGoalMl ?? DEFAULT_SETTINGS.waterGoalMl;
   const pct = goal > 0 ? Math.min(100, (data.waterMl / goal) * 100) : 0;
+  const smoothieDone = data.smoothieEaten ?? false;
+  const snackDone = data.snackEaten ?? false;
+  const waterGoalHit = data.waterMl >= goal;
 
   return (
     <section className="mb-10">
@@ -66,17 +69,21 @@ export function FoodWaterSection({ data, settings, update }: Props) {
       </h2>
 
       <div className="space-y-3">
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            smoothieDone ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Smoothie</p>
               <p className="text-sm text-muted">
-                {(data.smoothieEaten ?? false) && data.smoothieAt
+                {smoothieDone && data.smoothieAt
                   ? `Logged at ${formatTime(data.smoothieAt)}`
                   : "Not yet"}
               </p>
             </div>
-            {(data.smoothieEaten ?? false) ? (
+            {smoothieDone ? (
               <button
                 type="button"
                 onClick={() =>
@@ -107,7 +114,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               </button>
             )}
           </div>
-          {(data.smoothieEaten ?? false) && (
+          {smoothieDone && (
             <input
               type="text"
               placeholder="What did you have?"
@@ -120,7 +127,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            data.lunchEaten ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Lunch eaten</p>
@@ -183,13 +194,17 @@ export function FoodWaterSection({ data, settings, update }: Props) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            snackDone ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Afternoon snack eaten</p>
               <p className="text-sm text-muted">Suppresses food nudges</p>
             </div>
-            {(data.snackEaten ?? false) ? (
+            {snackDone ? (
               <button
                 type="button"
                 onClick={() =>
@@ -215,7 +230,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               </button>
             )}
           </div>
-          {(data.snackEaten ?? false) && (
+          {snackDone && (
             <input
               type="text"
               placeholder="What did you have?"
@@ -229,7 +244,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+      <div
+        className={`mt-4 rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+          waterGoalHit ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+        }`}
+      >
         <p className="font-medium text-gray-800 mb-2">Water</p>
         <div className="h-3 rounded-full bg-gray-100/80 overflow-hidden mb-4">
           <div
