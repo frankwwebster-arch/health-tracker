@@ -221,6 +221,81 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Medication supply
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              Pills held and doses per day. You’ll get a reminder when supply is 7 days or less.
+            </p>
+            {(
+              [
+                ["dex1", "Dex #1"],
+                ["dex2", "Dex #2"],
+                ["dex3", "Dex #3"],
+                ["bupropion", "Bupropion"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="mb-4 last:mb-0">
+                <span className="font-medium text-gray-800 block mb-1">{label}</span>
+                <div className="flex gap-2">
+                  <label className="flex-1">
+                    <span className="sr-only">Pills held</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={999}
+                      placeholder="Held"
+                      value={settings.medicationSupply?.[key] ?? 0}
+                      onChange={(e) =>
+                        update({
+                          medicationSupply: {
+                            ...(settings.medicationSupply ?? {
+                              dex1: 0,
+                              dex2: 0,
+                              dex3: 0,
+                              bupropion: 0,
+                            }),
+                            [key]: Math.max(0, parseInt(e.target.value, 10) || 0),
+                          },
+                        })
+                      }
+                      className="block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    />
+                  </label>
+                  <label className="w-28">
+                    <span className="sr-only">Per day</span>
+                    <select
+                      value={settings.medicationPillsPerDay?.[key] ?? 1}
+                      onChange={(e) =>
+                        update({
+                          medicationPillsPerDay: {
+                            ...(settings.medicationPillsPerDay ?? {
+                              dex1: 1,
+                              dex2: 1,
+                              dex3: 1,
+                              bupropion: 1,
+                            }),
+                            [key]: parseInt(e.target.value, 10),
+                          },
+                        })
+                      }
+                      className="block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n} per day
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="mb-8">
           <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
             Data

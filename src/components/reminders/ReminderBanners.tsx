@@ -45,6 +45,15 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
                 Mark as taken
               </button>
             )}
+            {r.type === "supply" && (
+              <button
+                type="button"
+                onClick={() => removeReminder(r.id)}
+                className="px-3 py-2 rounded-xl text-sm font-medium bg-white/80 text-gray-700 hover:bg-white border border-amber-200 min-h-[44px]"
+              >
+                Dismiss
+              </button>
+            )}
             {r.type === "water" && (
               <>
                 {onAddWater && (

@@ -14,7 +14,8 @@ export type ReminderType =
   | "dex3"
   | "bupropion"
   | "lunch"
-  | "water";
+  | "water"
+  | "supply";
 
 export interface ActiveReminder {
   id: string;

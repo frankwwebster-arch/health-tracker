@@ -30,6 +30,13 @@ export interface DayData {
   workoutDone: boolean;
   walkDone: boolean;
   stepsCount: number | null;
+  weightKg: number | null;
+  weightLoggedAt: number | null;
+  bedtime: string | null; // "HH:mm"
+  wakeTime: string | null; // "HH:mm"
+  sentimentMorning: number | null; // 1-5
+  sentimentMidday: number | null;
+  sentimentEvening: number | null;
 }
 
 export interface ReminderLastNotified {
@@ -51,6 +58,18 @@ export interface Settings {
     dex3: string;
     bupropion: string;
   };
+  medicationSupply: {
+    dex1: number;
+    dex2: number;
+    dex3: number;
+    bupropion: number;
+  };
+  medicationPillsPerDay: {
+    dex1: number;
+    dex2: number;
+    dex3: number;
+    bupropion: number;
+  };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -67,6 +86,18 @@ export const DEFAULT_SETTINGS: Settings = {
     dex2: "12:30",
     dex3: "15:30",
     bupropion: "07:30",
+  },
+  medicationSupply: {
+    dex1: 0,
+    dex2: 0,
+    dex3: 0,
+    bupropion: 0,
+  },
+  medicationPillsPerDay: {
+    dex1: 1,
+    dex2: 1,
+    dex3: 1,
+    bupropion: 1,
   },
 };
 
@@ -91,6 +122,13 @@ export function createEmptyDayData(): DayData {
     workoutDone: false,
     walkDone: false,
     stepsCount: null,
+    weightKg: null,
+    weightLoggedAt: null,
+    bedtime: null,
+    wakeTime: null,
+    sentimentMorning: null,
+    sentimentMidday: null,
+    sentimentEvening: null,
   };
 }
 
@@ -121,4 +159,43 @@ export function formatDateLabel(dateKey: string): string {
   const tomorrow = getAdjacentDateKey(today, 1);
   if (dateKey === tomorrow) return "Tomorrow";
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}
+
+export type WeightUnit = "kg" | "lbs" | "stone";
+
+const LBS_PER_KG = 2.20462;
+const KG_PER_STONE = 6.35029;
+
+export function kgToLbs(kg: number): number {
+  return kg * LBS_PER_KG;
+}
+
+export function kgToStone(kg: number): { stone: number; lbs: number } {
+  const totalLbs = kg * LBS_PER_KG;
+  const stone = Math.floor(totalLbs / 14);
+  const lbs = totalLbs % 14;
+  return { stone, lbs };
+}
+
+export function lbsToKg(lbs: number): number {
+  return lbs / LBS_PER_KG;
+}
+
+export function stoneToKg(stone: number, lbs: number = 0): number {
+  return (stone * 14 + lbs) / LBS_PER_KG;
+}
+
+/** Parse "11.5" as 11st 5lb, "11.12" as 11st 12lb */
+export function parseStoneInput(val: number): { stone: number; lbs: number } {
+  const s = Math.floor(val);
+  const dec = val - s;
+  const lbs = Math.min(13, Math.round(dec * 100));
+  return { stone: s, lbs };
+}
+
+export function formatWeight(kg: number, unit: WeightUnit): string {
+  if (unit === "kg") return `${kg.toFixed(1)} kg`;
+  if (unit === "lbs") return `${kgToLbs(kg).toFixed(1)} lbs`;
+  const { stone, lbs } = kgToStone(kg);
+  return `${stone} st ${lbs.toFixed(1)} lb`;
 }

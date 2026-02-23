@@ -145,6 +145,43 @@ export function ReminderScheduler() {
         }
         addReminder({ id: waterId, type: "water", title: "Time for water? +250ml" });
       }
+
+      // Supply: once per day when any medication has 7 days or less
+      const supplyId = "supply";
+      const supplyCooldown = 24 * 60 * 60 * 1000;
+      const lastSupply = lastNotified[supplyId] ?? 0;
+      const pillsPerDay = settings.medicationPillsPerDay ?? { dex1: 1, dex2: 1, dex3: 1, bupropion: 1 };
+      const supplyLow =
+        settings.medicationSupply &&
+        Object.entries(settings.medicationSupply).some(([key, held]) => {
+          const perDay = pillsPerDay[key as keyof typeof pillsPerDay] || 1;
+          const daysLeft = perDay > 0 ? Math.floor(held / perDay) : 0;
+          return held > 0 && daysLeft <= 7;
+        });
+      const supplyOk =
+        settings.remindersEnabled &&
+        supplyLow &&
+        Date.now() - lastSupply >= supplyCooldown &&
+        !notifiedThisRun.current.has(supplyId) &&
+        !isWithinQuietHours();
+      if (supplyOk) {
+        const lowNames = Object.entries(settings.medicationSupply!)
+          .filter(([key, held]) => {
+            const perDay = pillsPerDay[key as keyof typeof pillsPerDay] || 1;
+            const daysLeft = perDay > 0 ? Math.floor(held / perDay) : 0;
+            return held > 0 && daysLeft <= 7;
+          })
+          .map(([k]) => ({ dex1: "Dex #1", dex2: "Dex #2", dex3: "Dex #3", bupropion: "Bupropion" }[k]))
+          .join(", ");
+        const title = `Low supply: ${lowNames}. Refill soon.`;
+        notifiedThisRun.current.add(supplyId);
+        setLastNotified(dateKey, supplyId, nowMs).then(() => {});
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          const n = new Notification("Health Tracker", { body: title });
+          n.onclick = () => window.focus();
+        }
+        addReminder({ id: supplyId, type: "supply", title });
+      }
     }
 
     const interval = setInterval(() => {

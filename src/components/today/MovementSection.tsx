@@ -29,7 +29,7 @@ export function MovementSection({ data, update }: Props) {
               onClick={() =>
                 update((prev) => ({ ...prev, workoutDone: false }))
               }
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
             >
               Undo
             </button>
@@ -39,7 +39,7 @@ export function MovementSection({ data, update }: Props) {
               onClick={() =>
                 update((prev) => ({ ...prev, workoutDone: true }))
               }
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
             >
               Mark done
             </button>
@@ -59,7 +59,7 @@ export function MovementSection({ data, update }: Props) {
                 onClick={() =>
                   update((prev) => ({ ...prev, walkDone: false }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
             >
               Undo
             </button>
@@ -69,7 +69,7 @@ export function MovementSection({ data, update }: Props) {
               onClick={() =>
                 update((prev) => ({ ...prev, walkDone: true }))
               }
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
             >
               Mark done
             </button>

@@ -1,4 +1,4 @@
-import { get, set, del, createStore } from "idb-keyval";
+import { get, set, del, createStore, keys } from "idb-keyval";
 import type { DayData, Settings } from "@/types";
 import {
   createEmptyDayData,
@@ -45,6 +45,11 @@ export async function setLastNotified(
   const key = `${LAST_NOTIFIED_KEY}-${dateKey}`;
   const current = await getLastNotified(dateKey);
   await set(key, { ...current, [reminderId]: timestamp });
+}
+
+export async function getAllDayKeys(): Promise<string[]> {
+  const allKeys = await keys(daysStore);
+  return allKeys.filter((k): k is string => typeof k === "string" && /^\d{4}-\d{2}-\d{2}$/.test(k));
 }
 
 export async function resetToday(): Promise<void> {

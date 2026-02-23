@@ -48,7 +48,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     smoothieNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
               >
                 Undo
               </button>
@@ -62,7 +62,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     smoothieAt: Date.now(),
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
               >
                 Mark eaten
               </button>
@@ -102,7 +102,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     lunchNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
               >
                 Undo
               </button>
@@ -116,7 +116,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     lunchAt: Date.now(),
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
               >
                 Mark eaten
               </button>
@@ -151,7 +151,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     snackNote: "",
                   }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
               >
                 Undo
               </button>
@@ -161,7 +161,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                 onClick={() =>
                   update((prev) => ({ ...prev, snackEaten: true }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
               >
                 Mark eaten
               </button>

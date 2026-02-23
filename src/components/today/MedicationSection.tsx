@@ -125,7 +125,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         },
                       }))
                     }
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
                   >
                     Undo
                   </button>
@@ -141,7 +141,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         },
                       }))
                     }
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
                   >
                     Mark as taken
                   </button>

@@ -15,6 +15,12 @@ export function LayoutHeader({ title }: { title: string }) {
             Today
           </Link>
           <Link
+            href="/dashboard"
+            className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
+          >
+            Dashboard
+          </Link>
+          <Link
             href="/settings"
             className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
           >
