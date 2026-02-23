@@ -123,7 +123,12 @@ export default function TodayPage() {
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
         <MorningSection data={data} update={update} />
         <MedicationSection data={data} settings={settings} update={update} />
-        <FoodWaterSection data={data} update={update} settings={settings} />
+        <FoodWaterSection
+          data={data}
+          dateKey={selectedDateKey}
+          update={update}
+          settings={settings}
+        />
         <MovementSection data={data} update={update} dateKey={selectedDateKey} />
         <WeightSection data={data} update={update} />
         <EveningSection data={data} update={update} />
