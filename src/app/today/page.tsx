@@ -95,7 +95,7 @@ export default function TodayPage() {
       )}
       <SupplyBanner settings={settings} />
       <MigrationBanner />
-      <main className="max-w-lg mx-auto px-4 pb-24">
+      <main className="max-w-lg mx-auto px-4 pt-6 pb-24">
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
         <MorningSection data={data} update={update} />
         <MedicationSection data={data} settings={settings} update={update} />

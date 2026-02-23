@@ -29,9 +29,6 @@ export function AccountWidget() {
   return (
     <div className="flex items-center gap-2">
       <SyncStatus />
-      <span className="text-xs text-muted max-w-[120px] truncate" title={user.email ?? undefined}>
-        {user.email}
-      </span>
       <button
         type="button"
         onClick={signOut}

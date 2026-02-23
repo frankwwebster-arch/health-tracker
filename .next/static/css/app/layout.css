@@ -686,6 +686,9 @@ video {
 .min-h-screen {
   min-height: 100vh;
 }
+.min-h-\[3\.5rem\] {
+  min-height: 3.5rem;
+}
 .w-24 {
   width: 6rem;
 }
@@ -757,6 +760,9 @@ video {
 }
 .items-center {
   align-items: center;
+}
+.justify-end {
+  justify-content: flex-end;
 }
 .justify-center {
   justify-content: center;
@@ -968,6 +974,9 @@ video {
 }
 .pt-3 {
   padding-top: 0.75rem;
+}
+.pt-6 {
+  padding-top: 1.5rem;
 }
 .text-center {
   text-align: center;

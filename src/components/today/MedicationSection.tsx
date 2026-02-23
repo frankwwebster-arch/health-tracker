@@ -45,7 +45,7 @@ export function MedicationSection({ data, settings, update }: Props) {
 
   return (
     <section className="mb-10">
-      <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+      <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
         Medication
       </h2>
       <ul className="space-y-3">
