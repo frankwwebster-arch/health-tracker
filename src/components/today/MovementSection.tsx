@@ -64,7 +64,8 @@ export function MovementSection({
           </div>
           {pelotonConfigured === false && (
             <p className="mb-2 text-xs text-muted">
-              Peloton sync is not configured. Add PELOTON_USERNAME and PELOTON_PASSWORD.
+              Peloton sync is not configured. Connect Peloton in Settings (or set
+              PELOTON_USERNAME / PELOTON_PASSWORD).
             </p>
           )}
           {pelotonSyncStatus && (

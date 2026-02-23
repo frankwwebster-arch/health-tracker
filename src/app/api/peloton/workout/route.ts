@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
+import { PELOTON_BASE_URL, createPelotonSession } from "@/lib/peloton/api";
+import {
+  type EffectivePelotonCredentials,
+  getEffectivePelotonCredentialsForCurrentUser,
+} from "@/lib/peloton/credentials";
 
-const PELOTON_BASE_URL = "https://api.onepeloton.com";
 const MAX_WORKOUT_PAGES = 6;
 const PAGE_SIZE = 50;
 const SESSION_TTL_MS = 15 * 60 * 1000;
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-interface PelotonLoginResponse {
-  user_id?: string;
-  session_id?: string;
-}
 
 interface PelotonWorkout {
   id?: string;
@@ -45,7 +44,7 @@ interface PelotonSession {
   expiresAt: number;
 }
 
-let cachedSession: PelotonSession | null = null;
+const cachedSessions = new Map<string, PelotonSession>();
 
 export const dynamic = "force-dynamic";
 
@@ -154,46 +153,35 @@ function toWorkoutSummary(workout: PelotonWorkout, durationSeconds: number, inde
   };
 }
 
-async function loginToPeloton(): Promise<PelotonSession> {
-  const username = process.env.PELOTON_USERNAME;
-  const password = process.env.PELOTON_PASSWORD;
-  if (!username || !password) {
-    throw new Error("Peloton credentials are not configured");
-  }
+function getCredentialCacheKey(credentials: EffectivePelotonCredentials): string {
+  return `${credentials.source}:${credentials.username.trim().toLowerCase()}`;
+}
 
-  const response = await fetch(`${PELOTON_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username_or_email: username,
-      password,
-    }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Peloton login failed (${response.status})`);
-  }
-
-  const payload = (await response.json()) as PelotonLoginResponse;
-  if (!payload.session_id || !payload.user_id) {
-    throw new Error("Peloton login response missing user/session data");
-  }
-
+async function loginToPeloton(
+  credentials: EffectivePelotonCredentials,
+  cacheKey: string
+): Promise<PelotonSession> {
+  const baseSession = await createPelotonSession(credentials);
   const session: PelotonSession = {
-    userId: payload.user_id,
-    sessionId: payload.session_id,
+    userId: baseSession.userId,
+    sessionId: baseSession.sessionId,
     expiresAt: Date.now() + SESSION_TTL_MS,
   };
-  cachedSession = session;
+  cachedSessions.set(cacheKey, session);
   return session;
 }
 
-async function getPelotonSession(): Promise<PelotonSession> {
+async function getPelotonSession(
+  credentials: EffectivePelotonCredentials
+): Promise<{ session: PelotonSession; cacheKey: string }> {
+  const cacheKey = getCredentialCacheKey(credentials);
+  const cachedSession = cachedSessions.get(cacheKey);
   if (cachedSession && cachedSession.expiresAt > Date.now()) {
-    return cachedSession;
+    return { session: cachedSession, cacheKey };
   }
-  return loginToPeloton();
+
+  const session = await loginToPeloton(credentials, cacheKey);
+  return { session, cacheKey };
 }
 
 async function requestWorkoutsPage(session: PelotonSession, page: number): Promise<Response> {
@@ -216,14 +204,20 @@ async function parseWorkouts(response: Response): Promise<PelotonWorkout[]> {
   return Array.isArray(payload.data) ? payload.data : [];
 }
 
-async function fetchWorkoutsPage(page: number): Promise<PelotonWorkout[]> {
-  const session = await getPelotonSession();
-  const firstAttempt = await requestWorkoutsPage(session, page);
+async function fetchWorkoutsPage(
+  page: number,
+  credentials: EffectivePelotonCredentials
+): Promise<PelotonWorkout[]> {
+  const firstSessionState = await getPelotonSession(credentials);
+  const firstAttempt = await requestWorkoutsPage(firstSessionState.session, page);
 
   if (firstAttempt.status === 401 || firstAttempt.status === 403) {
-    cachedSession = null;
-    const refreshedSession = await getPelotonSession();
-    const retryAttempt = await requestWorkoutsPage(refreshedSession, page);
+    cachedSessions.delete(firstSessionState.cacheKey);
+    const refreshedSessionState = await getPelotonSession(credentials);
+    const retryAttempt = await requestWorkoutsPage(
+      refreshedSessionState.session,
+      page
+    );
     if (!retryAttempt.ok) {
       throw new Error(`Peloton workouts request failed (${retryAttempt.status})`);
     }
@@ -239,13 +233,14 @@ async function fetchWorkoutsPage(page: number): Promise<PelotonWorkout[]> {
 
 async function getWorkoutDataForDate(
   dateKey: string,
-  timeZone: string
+  timeZone: string,
+  credentials: EffectivePelotonCredentials
 ): Promise<{ workoutMinutes: number | null; workouts: PelotonWorkoutSummary[] }> {
   let totalSeconds = 0;
   const matchedWorkouts: PelotonWorkoutSummary[] = [];
 
   for (let page = 0; page < MAX_WORKOUT_PAGES; page++) {
-    const workouts = await fetchWorkoutsPage(page);
+    const workouts = await fetchWorkoutsPage(page, credentials);
     if (workouts.length === 0) break;
 
     let oldestWorkoutDateKey: string | null = null;
@@ -302,7 +297,8 @@ export async function GET(request: Request) {
   const rawTimeZone = searchParams.get("timeZone") ?? "UTC";
   const timeZone = isValidTimeZone(rawTimeZone) ? rawTimeZone : "UTC";
 
-  if (!process.env.PELOTON_USERNAME || !process.env.PELOTON_PASSWORD) {
+  const { credentials } = await getEffectivePelotonCredentialsForCurrentUser();
+  if (!credentials) {
     return NextResponse.json({
       workoutMinutes: null,
       workouts: [],
@@ -311,19 +307,26 @@ export async function GET(request: Request) {
   }
 
   try {
-    const workoutData = await getWorkoutDataForDate(dateKey, timeZone);
+    const workoutData = await getWorkoutDataForDate(
+      dateKey,
+      timeZone,
+      credentials
+    );
     return NextResponse.json({
       workoutMinutes: workoutData.workoutMinutes,
       workouts: workoutData.workouts,
       configured: true,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         workoutMinutes: null,
         workouts: [],
         configured: true,
-        error: "Failed to fetch workouts from Peloton",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch workouts from Peloton",
       },
       { status: 502 }
     );

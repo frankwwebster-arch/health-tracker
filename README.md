@@ -13,8 +13,26 @@ Open [http://localhost:3000](http://localhost:3000). The app redirects to `/toda
 
 ## Peloton workout sync (optional)
 
-If you set Peloton credentials in `.env.local`, the app can auto-populate the
-`Workout` field from your Peloton workouts for the selected day.
+The app can auto-populate the `Workout` field from Peloton and supports
+multiple same-day workouts (for example: bike + strength).
+
+Recommended setup (secure, per user):
+- Sign in.
+- Add Peloton credentials in **Settings → Peloton**.
+- Set a server encryption key in `.env.local`:
+
+```bash
+PELOTON_CREDENTIALS_ENCRYPTION_KEY=replace-with-random-secret
+```
+
+You can generate one with:
+
+```bash
+openssl rand -base64 32
+```
+
+Fallback setup (global/shared credentials):
+- Set Peloton credentials in `.env.local`:
 
 ```bash
 PELOTON_USERNAME=your-peloton-email
@@ -27,15 +45,14 @@ Behavior:
   that day.
 - You can also press **Sync from Peloton** in the Movement section to re-sync on
   demand.
-- Multiple same-day workouts are supported (for example: bike + strength), and
-  each workout is shown with its own duration.
+- Each imported workout is listed with its own duration.
 - Manual edits are preserved: if you already set workout minutes, Peloton data
   does not overwrite it.
 
 ## Features
 
 - **Today (`/today`)**: Tick boxes for medication (Dexamphetamine (3x daily), Bupropion), lunch, afternoon snack, water (goal + quick add/undo), workout, walk. Optional Peloton auto-import can fill workout minutes. Daily summary with calm, non-judgmental copy.
-- **Settings (`/settings`)**: Enable/disable reminders, weekday-only, water goal and interval, lunch and medication times, test notification, reset today.
+- **Settings (`/settings`)**: Enable/disable reminders, weekday-only, water goal and interval, lunch and medication times, Peloton connection status and credential test, reset today.
 - **Reminders**: Client-side scheduler (every 60s). Optional browser notifications; in-app banners as fallback. Weekdays only, quiet hours 20:00–07:00, 45‑min cooldown. Medication and lunch at set times; water every N minutes in configured window. Max 2 banners visible; “More reminders (n)” for the rest. Actions: Mark as taken, Snooze 30/60 min; water banner has +250 ml quick action.
 - **Persistence**: IndexedDB via `idb-keyval`. All data stays on device. Works offline after first load.
 

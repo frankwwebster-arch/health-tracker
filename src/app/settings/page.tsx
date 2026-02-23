@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import type { Settings } from "@/types";
@@ -15,6 +15,26 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { useSync } from "@/components/SyncContext";
 
+interface PelotonConnectionState {
+  connected: boolean;
+  usernameHint: string | null;
+  lastTestedAt: string | null;
+  lastTestStatus: "success" | "failure" | null;
+  lastTestError: string | null;
+  encryptionReady: boolean;
+}
+
+interface PelotonConnectionApiResponse {
+  connected?: boolean;
+  usernameHint?: string | null;
+  lastTestedAt?: string | null;
+  lastTestStatus?: "success" | "failure" | null;
+  lastTestError?: string | null;
+  encryptionReady?: boolean;
+  message?: string;
+  error?: string;
+}
+
 export default function SettingsPage() {
   const { settings, setSettings } = useSettings();
   const { user } = useAuth();
@@ -22,12 +42,174 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [pelotonUsername, setPelotonUsername] = useState("");
+  const [pelotonPassword, setPelotonPassword] = useState("");
+  const [pelotonLoading, setPelotonLoading] = useState(false);
+  const [pelotonBusy, setPelotonBusy] = useState(false);
+  const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
+  const [pelotonConnection, setPelotonConnection] =
+    useState<PelotonConnectionState | null>(null);
 
   useEffect(() => {
     if (!saved) return;
     const t = setTimeout(() => setSaved(false), 2000);
     return () => clearTimeout(t);
   }, [saved]);
+
+  const toPelotonConnectionState = useCallback(
+    (payload: PelotonConnectionApiResponse): PelotonConnectionState => ({
+      connected: Boolean(payload.connected),
+      usernameHint:
+        typeof payload.usernameHint === "string" ? payload.usernameHint : null,
+      lastTestedAt:
+        typeof payload.lastTestedAt === "string" ? payload.lastTestedAt : null,
+      lastTestStatus:
+        payload.lastTestStatus === "success" || payload.lastTestStatus === "failure"
+          ? payload.lastTestStatus
+          : null,
+      lastTestError:
+        typeof payload.lastTestError === "string" ? payload.lastTestError : null,
+      encryptionReady:
+        typeof payload.encryptionReady === "boolean"
+          ? payload.encryptionReady
+          : true,
+    }),
+    []
+  );
+
+  const loadPelotonConnection = useCallback(async () => {
+    if (!user) {
+      setPelotonConnection(null);
+      return;
+    }
+
+    setPelotonLoading(true);
+    try {
+      const response = await fetch("/api/peloton/connection", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as PelotonConnectionApiResponse;
+      if (!response.ok) {
+        setPelotonMessage(payload.error ?? "Unable to load Peloton status.");
+        return;
+      }
+
+      setPelotonConnection(toPelotonConnectionState(payload));
+    } catch {
+      setPelotonMessage("Unable to load Peloton status.");
+    } finally {
+      setPelotonLoading(false);
+    }
+  }, [toPelotonConnectionState, user]);
+
+  useEffect(() => {
+    if (!user) {
+      setPelotonConnection(null);
+      setPelotonMessage(null);
+      return;
+    }
+    void loadPelotonConnection();
+  }, [loadPelotonConnection, user]);
+
+  const handleSavePelotonConnection = async () => {
+    if (!user) {
+      setPelotonMessage("Sign in first to connect Peloton.");
+      return;
+    }
+
+    const username = pelotonUsername.trim();
+    const password = pelotonPassword.trim();
+    if (!username || !password) {
+      setPelotonMessage("Enter your Peloton username/email and password.");
+      return;
+    }
+
+    setPelotonBusy(true);
+    setPelotonMessage("Saving and confirming Peloton connection…");
+    try {
+      const response = await fetch("/api/peloton/connection", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const payload = (await response.json()) as PelotonConnectionApiResponse;
+      if (!response.ok) {
+        setPelotonMessage(payload.error ?? "Could not connect Peloton.");
+        return;
+      }
+
+      setPelotonConnection(toPelotonConnectionState(payload));
+      setPelotonPassword("");
+      setPelotonMessage(payload.message ?? "Peloton connected.");
+    } catch {
+      setPelotonMessage("Could not connect Peloton.");
+    } finally {
+      setPelotonBusy(false);
+    }
+  };
+
+  const handleTestPelotonConnection = async () => {
+    if (!user) {
+      setPelotonMessage("Sign in first to test Peloton connection.");
+      return;
+    }
+
+    setPelotonBusy(true);
+    setPelotonMessage("Testing saved Peloton connection…");
+    try {
+      const response = await fetch("/api/peloton/connection", {
+        method: "POST",
+      });
+      const payload = (await response.json()) as PelotonConnectionApiResponse;
+      if (!response.ok) {
+        setPelotonConnection(toPelotonConnectionState(payload));
+        setPelotonMessage(payload.error ?? "Peloton connection test failed.");
+        return;
+      }
+
+      setPelotonConnection(toPelotonConnectionState(payload));
+      setPelotonMessage(payload.message ?? "Peloton connection confirmed.");
+    } catch {
+      setPelotonMessage("Peloton connection test failed.");
+    } finally {
+      setPelotonBusy(false);
+    }
+  };
+
+  const handleDisconnectPelotonConnection = async () => {
+    if (!user) return;
+    if (!confirm("Disconnect Peloton for this account?")) return;
+
+    setPelotonBusy(true);
+    setPelotonMessage("Disconnecting Peloton…");
+    try {
+      const response = await fetch("/api/peloton/connection", {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as PelotonConnectionApiResponse;
+      if (!response.ok) {
+        setPelotonMessage(payload.error ?? "Could not disconnect Peloton.");
+        return;
+      }
+
+      setPelotonConnection({
+        connected: false,
+        usernameHint: null,
+        lastTestedAt: null,
+        lastTestStatus: null,
+        lastTestError: null,
+        encryptionReady: pelotonConnection?.encryptionReady ?? true,
+      });
+      setPelotonUsername("");
+      setPelotonPassword("");
+      setPelotonMessage(payload.message ?? "Peloton disconnected.");
+    } catch {
+      setPelotonMessage("Could not disconnect Peloton.");
+    } finally {
+      setPelotonBusy(false);
+    }
+  };
 
   if (!settings) {
     return (
@@ -138,6 +320,10 @@ export default function SettingsPage() {
   const lastSyncStr =
     syncCtx?.lastSync != null
       ? new Date(syncCtx.lastSync).toLocaleString()
+      : "Never";
+  const pelotonLastTestStr =
+    pelotonConnection?.lastTestedAt != null
+      ? new Date(pelotonConnection.lastTestedAt).toLocaleString()
       : "Never";
 
   return (
@@ -549,6 +735,111 @@ export default function SettingsPage() {
                 Import JSON
               </button>
             </div>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Peloton
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            {!user ? (
+              <p className="text-sm text-muted">
+                Sign in to securely save Peloton credentials and test connection.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-muted mb-3">
+                  Credentials are encrypted on the server. Use this to connect and
+                  confirm Peloton sync.
+                </p>
+                {pelotonLoading ? (
+                  <p className="text-sm text-muted mb-3">Checking connection…</p>
+                ) : (
+                  <div className="mb-3 rounded-xl border border-border bg-surface/40 px-3 py-2">
+                    <p className="text-sm text-gray-800">
+                      {pelotonConnection?.connected
+                        ? `Connected as ${pelotonConnection.usernameHint ?? "saved account"}`
+                        : "Not connected"}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      Last test: {pelotonLastTestStr}
+                      {pelotonConnection?.lastTestStatus
+                        ? ` · ${pelotonConnection.lastTestStatus === "success" ? "success" : "failed"}`
+                        : ""}
+                    </p>
+                    {pelotonConnection?.lastTestStatus === "failure" &&
+                      pelotonConnection.lastTestError && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          {pelotonConnection.lastTestError}
+                        </p>
+                      )}
+                  </div>
+                )}
+                {pelotonConnection?.encryptionReady === false && (
+                  <p className="text-sm text-amber-600 mb-3">
+                    Server is missing PELOTON_CREDENTIALS_ENCRYPTION_KEY, so saved
+                    Peloton credentials are disabled.
+                  </p>
+                )}
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="font-medium text-gray-800">
+                      Peloton username or email
+                    </span>
+                    <input
+                      type="text"
+                      value={pelotonUsername}
+                      onChange={(e) => setPelotonUsername(e.target.value)}
+                      placeholder={pelotonConnection?.usernameHint ?? "you@example.com"}
+                      className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-medium text-gray-800">
+                      Peloton password
+                    </span>
+                    <input
+                      type="password"
+                      value={pelotonPassword}
+                      onChange={(e) => setPelotonPassword(e.target.value)}
+                      placeholder="Required to save/update"
+                      autoComplete="current-password"
+                      className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleSavePelotonConnection}
+                    disabled={pelotonBusy}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {pelotonBusy ? "Working…" : "Save & connect"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTestPelotonConnection}
+                    disabled={pelotonBusy || !pelotonConnection?.connected}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border disabled:opacity-50"
+                  >
+                    Test connection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectPelotonConnection}
+                    disabled={pelotonBusy || !pelotonConnection?.connected}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border disabled:opacity-50"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+                {pelotonMessage && (
+                  <p className="text-sm text-muted mt-3">{pelotonMessage}</p>
+                )}
+              </>
+            )}
           </div>
         </section>
 
