@@ -552,57 +552,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
-            Sync
-          </h2>
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
-            <p className="text-sm text-muted mb-3">
-              {user
-                ? "Sync your data across devices when signed in."
-                : "Sign in to sync across devices."}
-            </p>
-            {user && (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={handleSyncNow}
-                    disabled={syncing}
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
-                  >
-                    {syncing ? "Syncing…" : "Sync now"}
-                  </button>
-                  <span className="text-sm text-muted">
-                    Last sync: {lastSyncStr}
-                  </span>
-                </div>
-                {syncMessage && (
-                  <p className={`text-sm ${syncMessage.startsWith("Synced") ? "text-accent" : "text-amber-600"}`}>
-                    {syncMessage}
-                  </p>
-                )}
-              </>
-            )}
-            <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-              <button
-                type="button"
-                onClick={handleExport}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
-              >
-                Export JSON
-              </button>
-              <button
-                type="button"
-                onClick={handleImport}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
-              >
-                Import JSON
-              </button>
-            </div>
-          </div>
-        </section>
-
         <section className="mb-8">
           <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
             Data
