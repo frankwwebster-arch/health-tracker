@@ -66,7 +66,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
       </h2>
 
       <div className="space-y-3">
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            data.smoothieEaten ?? false ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Smoothie</p>
@@ -120,7 +124,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            data.lunchEaten ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Lunch eaten</p>
@@ -183,7 +191,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+        <div
+          className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+            data.snackEaten ?? false ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Afternoon snack eaten</p>
@@ -229,7 +241,11 @@ export function FoodWaterSection({ data, settings, update }: Props) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+      <div
+        className={`mt-4 rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+          data.waterMl >= goal ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+        }`}
+      >
         <p className="font-medium text-gray-800 mb-2">Water</p>
         <div className="h-3 rounded-full bg-gray-100/80 overflow-hidden mb-4">
           <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import type { Settings } from "@/types";
@@ -22,12 +22,108 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [pelotonUsername, setPelotonUsername] = useState("");
+  const [pelotonPassword, setPelotonPassword] = useState("");
+  const [pelotonConn, setPelotonConn] = useState<{
+    configured: boolean;
+    connected: boolean;
+    usernameHint: string | null;
+    lastTestedAt: string | null;
+    lastTestStatus: string | null;
+    lastTestError: string | null;
+  } | null>(null);
+  const [pelotonSaving, setPelotonSaving] = useState(false);
+  const [pelotonTesting, setPelotonTesting] = useState(false);
+  const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!saved) return;
     const t = setTimeout(() => setSaved(false), 2000);
     return () => clearTimeout(t);
   }, [saved]);
+
+  const loadPelotonConnection = useCallback(async () => {
+    if (!user) {
+      setPelotonConn({ configured: false, connected: false, usernameHint: null, lastTestedAt: null, lastTestStatus: null, lastTestError: null });
+      return;
+    }
+    try {
+      const res = await fetch("/api/peloton/connection");
+      const json = await res.json();
+      setPelotonConn({
+        configured: json.configured ?? false,
+        connected: json.connected ?? false,
+        usernameHint: json.usernameHint ?? null,
+        lastTestedAt: json.lastTestedAt ?? null,
+        lastTestStatus: json.lastTestStatus ?? null,
+        lastTestError: json.lastTestError ?? null,
+      });
+    } catch {
+      setPelotonConn({ configured: false, connected: false, usernameHint: null, lastTestedAt: null, lastTestStatus: null, lastTestError: null });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadPelotonConnection();
+  }, [loadPelotonConnection]);
+
+  const handlePelotonSave = async () => {
+    if (!pelotonUsername.trim() || !pelotonPassword) {
+      setPelotonMessage("Enter username and password");
+      return;
+    }
+    setPelotonSaving(true);
+    try {
+      const res = await fetch("/api/peloton/connection", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: pelotonUsername.trim(), password: pelotonPassword }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setPelotonPassword("");
+        await loadPelotonConnection();
+        setPelotonMessage(json.status === "success" ? "Connected" : json.error ?? "Saved");
+      } else {
+        setPelotonMessage(json.error ?? "Failed");
+      }
+    } catch {
+      setPelotonMessage("Failed");
+    } finally {
+      setPelotonSaving(false);
+    }
+  };
+
+  const handlePelotonTest = async () => {
+    setPelotonTesting(true);
+    setPelotonMessage(null);
+    try {
+      const res = await fetch("/api/peloton/connection", { method: "POST" });
+      const json = await res.json();
+      if (json.success || json.status === "success") {
+        setPelotonMessage("Connection successful");
+        await loadPelotonConnection();
+      } else {
+        setPelotonMessage(json.error ?? "Connection failed");
+      }
+    } catch {
+      setPelotonMessage("Connection failed");
+    } finally {
+      setPelotonTesting(false);
+    }
+  };
+
+  const handlePelotonDisconnect = async () => {
+    if (!confirm("Remove saved Peloton credentials?")) return;
+    try {
+      const res = await fetch("/api/peloton/connection", { method: "DELETE" });
+      if (res.ok) {
+        setPelotonUsername("");
+        setPelotonPassword("");
+        await loadPelotonConnection();
+      }
+    } catch {}
+  };
 
   if (!settings) {
     return (
@@ -498,6 +594,90 @@ export default function SettingsPage() {
             >
               + Add medication or supplement
             </button>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Peloton
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              Connect your Peloton account to auto-populate workout minutes on the Today page. Workouts sync when the day is empty, or use &quot;Sync from Peloton&quot; in Movement.
+            </p>
+            {!user ? (
+              <p className="text-sm text-muted">Sign in to connect Peloton.</p>
+            ) : (
+              <>
+                {pelotonConn?.configured && pelotonConn.connected && (
+                  <p className="text-sm text-accent mb-3">
+                    Connected as {pelotonConn.usernameHint}
+                    {pelotonConn.lastTestStatus === "success" && pelotonConn.lastTestedAt && (
+                      <span className="text-muted"> · Tested {new Date(pelotonConn.lastTestedAt).toLocaleString()}</span>
+                    )}
+                  </p>
+                )}
+                {pelotonConn?.lastTestStatus === "failure" && pelotonConn.lastTestError && (
+                  <p className="text-sm text-amber-600 mb-2">{pelotonConn.lastTestError}</p>
+                )}
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="font-medium text-gray-800">Email or username</span>
+                    <input
+                      type="text"
+                      value={pelotonUsername}
+                      onChange={(e) => setPelotonUsername(e.target.value)}
+                      placeholder={pelotonConn?.usernameHint ?? "your@email.com"}
+                      className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-medium text-gray-800">Password</span>
+                    <input
+                      type="password"
+                      value={pelotonPassword}
+                      onChange={(e) => setPelotonPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handlePelotonSave}
+                    disabled={pelotonSaving || !pelotonUsername.trim() || !pelotonPassword}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {pelotonSaving ? "Saving…" : "Save & connect"}
+                  </button>
+                  {pelotonConn?.configured && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handlePelotonTest}
+                        disabled={pelotonTesting}
+                        className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border disabled:opacity-50"
+                      >
+                        {pelotonTesting ? "Testing…" : "Test connection"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePelotonDisconnect}
+                        className="px-4 py-2.5 rounded-xl text-sm font-medium text-amber-600 hover:text-amber-700"
+                      >
+                        Disconnect
+                      </button>
+                    </>
+                  )}
+                </div>
+                {pelotonMessage && (
+                  <p className={`mt-2 text-sm ${pelotonMessage.includes("success") || pelotonMessage === "Connected" ? "text-accent" : "text-amber-600"}`}>
+                    {pelotonMessage}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </section>
 

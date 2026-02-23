@@ -14,6 +14,18 @@ export interface WaterLogEntry {
   timestamp: number;
 }
 
+/** Single Peloton workout session (synced or manual) */
+export interface PelotonWorkoutSession {
+  id: string;
+  durationMinutes: number;
+  /** Optional: e.g. "Cycling", "Strength" */
+  discipline?: string;
+  /** Optional: class title e.g. "30 min HIIT Ride" */
+  title?: string;
+  /** Optional: instructor name e.g. "Kendall Toole" */
+  instructor?: string;
+}
+
 export interface DayData {
   medication: {
     dex: MultiDoseMedication;
@@ -29,7 +41,9 @@ export interface DayData {
   snackNote: string;
   waterMl: number;
   waterLog: WaterLogEntry[];
-  workoutMinutes: number | null; // 30, 45, 60, or custom
+  workoutMinutes: number | null; // total minutes (from presets or Peloton sessions)
+  /** Per-session breakdown when synced from Peloton or multiple workouts */
+  workoutSessions?: PelotonWorkoutSession[];
   walkDone: boolean;
   stepsCount: number | null;
   weightKg: number | null;

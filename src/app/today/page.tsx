@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTodayData, useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { DateSelector } from "@/components/today/DateSelector";
@@ -23,6 +23,30 @@ export default function TodayPage() {
   const { data, update } = useTodayData(selectedDateKey);
   const { settings } = useSettings();
   const isToday = selectedDateKey === getDateKey();
+  const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!data) return;
+    if (data.workoutMinutes != null) return;
+    if ((data.workoutSessions ?? []).length > 0) return;
+    if (pelotonAutoSyncDone.current.has(selectedDateKey)) return;
+    pelotonAutoSyncDone.current.add(selectedDateKey);
+
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    fetch(`/api/peloton/workout?date=${selectedDateKey}&timeZone=${encodeURIComponent(tz)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.error || !json.configured) return;
+        if (json.workoutMinutes != null || (json.workoutSessions ?? []).length > 0) {
+          update((prev) => ({
+            ...prev,
+            workoutMinutes: json.workoutMinutes ?? prev.workoutMinutes,
+            workoutSessions: json.workoutSessions ?? prev.workoutSessions,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [data, selectedDateKey, update]);
 
   const handleMarkAsTaken = (type: ReminderType, id: string) => {
     if (type === "lunch") {
@@ -100,7 +124,7 @@ export default function TodayPage() {
         <MorningSection data={data} update={update} />
         <MedicationSection data={data} settings={settings} update={update} />
         <FoodWaterSection data={data} update={update} settings={settings} />
-        <MovementSection data={data} update={update} />
+        <MovementSection data={data} update={update} dateKey={selectedDateKey} />
         <WeightSection data={data} update={update} />
         <EveningSection data={data} update={update} />
         <DailySummary
