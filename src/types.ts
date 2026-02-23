@@ -34,6 +34,7 @@ export interface DayData {
   lunchEaten: boolean;
   lunchAt: number | null;
   lunchNote: string;
+  lunchFoods: string[];
   smoothieEaten: boolean;
   smoothieAt: number | null;
   smoothieNote: string;
@@ -132,6 +133,7 @@ export function createEmptyDayData(): DayData {
     lunchEaten: false,
     lunchAt: null,
     lunchNote: "",
+    lunchFoods: [],
     smoothieEaten: false,
     smoothieAt: null,
     smoothieNote: "",

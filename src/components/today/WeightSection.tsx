@@ -55,7 +55,11 @@ export function WeightSection({ data, update }: Props) {
       <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
         Weight
       </h2>
-      <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+      <div
+        className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+          weightKg != null ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+        }`}
+      >
         {weightKg != null ? (
           <div>
             <p className="font-medium text-gray-800 mb-1">

@@ -27,8 +27,18 @@ const BASE_SMOOTHIE_FOODS = [
   "peanut butter",
 ] as const;
 
-const MIN_REPEATED_SMOOTHIE_FOOD_COUNT = 2;
+const BASE_LUNCH_FOODS = [
+  "sandwich",
+  "soup",
+  "salad",
+  "fruit",
+  "leftovers",
+  "bread",
+] as const;
+
+const MIN_REPEATED_FOOD_COUNT = 2;
 const MAX_SMOOTHIE_FOOD_CHECKBOXES = 12;
+const MAX_LUNCH_FOOD_CHECKBOXES = 12;
 
 const IGNORED_FOOD_WORDS = new Set([
   "a",
@@ -56,6 +66,7 @@ const IGNORED_FOOD_WORDS = new Set([
   "blended",
   "blend",
   "smoothie",
+  "lunch",
   "today",
   "yesterday",
   "this",
@@ -79,22 +90,28 @@ function normalizeIngredientLabel(raw: string): string | null {
   return words.join(" ");
 }
 
-function extractIngredientsFromSmoothieText(note: string): string[] {
+function extractItemsFromNote(note: string): string[] {
   if (!note.trim()) return [];
   const chunks = note.split(/,|;|\/|\+|&|\band\b|\bwith\b/gi);
-  const ingredients = new Set<string>();
-
+  const items = new Set<string>();
   for (const chunk of chunks) {
     const normalized = normalizeIngredientLabel(chunk);
-    if (normalized) ingredients.add(normalized);
+    if (normalized) items.add(normalized);
   }
-
-  return Array.from(ingredients);
+  return Array.from(items);
 }
 
-function collectFoodsForDay(day: Pick<DayData, "smoothieNote" | "smoothieFoods">): string[] {
-  const fromNote = extractIngredientsFromSmoothieText(day.smoothieNote ?? "");
+function collectSmoothieFoodsForDay(day: Pick<DayData, "smoothieNote" | "smoothieFoods">): string[] {
+  const fromNote = extractItemsFromNote(day.smoothieNote ?? "");
   const fromCheckboxes = (day.smoothieFoods ?? [])
+    .map((food) => normalizeIngredientLabel(food))
+    .filter((food): food is string => Boolean(food));
+  return Array.from(new Set([...fromNote, ...fromCheckboxes]));
+}
+
+function collectLunchFoodsForDay(day: Pick<DayData, "lunchNote" | "lunchFoods">): string[] {
+  const fromNote = extractItemsFromNote(day.lunchNote ?? "");
+  const fromCheckboxes = (day.lunchFoods ?? [])
     .map((food) => normalizeIngredientLabel(food))
     .filter((food): food is string => Boolean(food));
   return Array.from(new Set([...fromNote, ...fromCheckboxes]));
@@ -150,14 +167,14 @@ interface Props {
 export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
   const goal = settings?.waterGoalMl ?? DEFAULT_SETTINGS.waterGoalMl;
   const pct = goal > 0 ? Math.min(100, (data.waterMl / goal) * 100) : 0;
-  const [smoothieHistoryByDate, setSmoothieHistoryByDate] = useState<
-    Record<string, Pick<DayData, "smoothieNote" | "smoothieFoods">>
+  const [foodHistoryByDate, setFoodHistoryByDate] = useState<
+    Record<string, Pick<DayData, "smoothieNote" | "smoothieFoods" | "lunchNote" | "lunchFoods">>
   >({});
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadSmoothieHistory = async () => {
+    const loadFoodHistory = async () => {
       try {
         const keys = await getAllDayKeys();
         const entries = await Promise.all(
@@ -168,21 +185,23 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
               {
                 smoothieNote: day.smoothieNote ?? "",
                 smoothieFoods: day.smoothieFoods ?? [],
+                lunchNote: day.lunchNote ?? "",
+                lunchFoods: day.lunchFoods ?? [],
               },
             ] as const;
           })
         );
         if (!cancelled) {
-          setSmoothieHistoryByDate(Object.fromEntries(entries));
+          setFoodHistoryByDate(Object.fromEntries(entries));
         }
       } catch {
         if (!cancelled) {
-          setSmoothieHistoryByDate({});
+          setFoodHistoryByDate({});
         }
       }
     };
 
-    void loadSmoothieHistory();
+    void loadFoodHistory();
 
     return () => {
       cancelled = true;
@@ -192,22 +211,20 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
   const suggestedSmoothieFoods = useMemo(() => {
     const counts = new Map<string, number>();
     const allDays: Record<string, Pick<DayData, "smoothieNote" | "smoothieFoods">> = {
-      ...smoothieHistoryByDate,
-      [dateKey]: {
-        smoothieNote: data.smoothieNote ?? "",
-        smoothieFoods: data.smoothieFoods ?? [],
-      },
+      ...Object.fromEntries(
+        Object.entries(foodHistoryByDate).map(([k, v]) => [k, { smoothieNote: v.smoothieNote, smoothieFoods: v.smoothieFoods }])
+      ),
+      [dateKey]: { smoothieNote: data.smoothieNote ?? "", smoothieFoods: data.smoothieFoods ?? [] },
     };
 
     for (const day of Object.values(allDays)) {
-      const foodsForDay = collectFoodsForDay(day);
-      for (const food of foodsForDay) {
+      for (const food of collectSmoothieFoodsForDay(day)) {
         counts.set(food, (counts.get(food) ?? 0) + 1);
       }
     }
 
     const repeatedFoods = Array.from(counts.entries())
-      .filter(([, count]) => count >= MIN_REPEATED_SMOOTHIE_FOOD_COUNT)
+      .filter(([, count]) => count >= MIN_REPEATED_FOOD_COUNT)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([food]) => food);
 
@@ -215,7 +232,33 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
       0,
       MAX_SMOOTHIE_FOOD_CHECKBOXES
     );
-  }, [data.smoothieFoods, data.smoothieNote, dateKey, smoothieHistoryByDate]);
+  }, [data.smoothieFoods, data.smoothieNote, dateKey, foodHistoryByDate]);
+
+  const suggestedLunchFoods = useMemo(() => {
+    const counts = new Map<string, number>();
+    const allDays: Record<string, Pick<DayData, "lunchNote" | "lunchFoods">> = {
+      ...Object.fromEntries(
+        Object.entries(foodHistoryByDate).map(([k, v]) => [k, { lunchNote: v.lunchNote, lunchFoods: v.lunchFoods }])
+      ),
+      [dateKey]: { lunchNote: data.lunchNote ?? "", lunchFoods: data.lunchFoods ?? [] },
+    };
+
+    for (const day of Object.values(allDays)) {
+      for (const food of collectLunchFoodsForDay(day)) {
+        counts.set(food, (counts.get(food) ?? 0) + 1);
+      }
+    }
+
+    const repeatedFoods = Array.from(counts.entries())
+      .filter(([, count]) => count >= MIN_REPEATED_FOOD_COUNT)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([food]) => food);
+
+    return Array.from(new Set([...BASE_LUNCH_FOODS, ...repeatedFoods])).slice(
+      0,
+      MAX_LUNCH_FOOD_CHECKBOXES
+    );
+  }, [data.lunchFoods, data.lunchNote, dateKey, foodHistoryByDate]);
 
   const selectedSmoothieFoods = useMemo(
     () =>
@@ -225,6 +268,16 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
           .filter((food): food is string => Boolean(food))
       ),
     [data.smoothieFoods]
+  );
+
+  const selectedLunchFoods = useMemo(
+    () =>
+      new Set(
+        (data.lunchFoods ?? [])
+          .map((food) => normalizeIngredientLabel(food))
+          .filter((food): food is string => Boolean(food))
+      ),
+    [data.lunchFoods]
   );
 
   const toggleSmoothieFood = (food: string) => {
@@ -247,6 +300,30 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
       return {
         ...prev,
         smoothieFoods: Array.from(nextFoods).sort(),
+      };
+    });
+  };
+
+  const toggleLunchFood = (food: string) => {
+    update((prev) => {
+      const normalized = normalizeIngredientLabel(food);
+      if (!normalized) return prev;
+
+      const nextFoods = new Set(
+        (prev.lunchFoods ?? [])
+          .map((item) => normalizeIngredientLabel(item))
+          .filter((item): item is string => Boolean(item))
+      );
+
+      if (nextFoods.has(normalized)) {
+        nextFoods.delete(normalized);
+      } else {
+        nextFoods.add(normalized);
+      }
+
+      return {
+        ...prev,
+        lunchFoods: Array.from(nextFoods).sort(),
       };
     });
   };
@@ -370,6 +447,7 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
                     lunchEaten: false,
                     lunchAt: null,
                     lunchNote: "",
+                    lunchFoods: [],
                   }))
                 }
               />
@@ -390,15 +468,50 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
             )}
           </div>
           {data.lunchEaten && (
-            <input
-              type="text"
-              placeholder="What did you have?"
-              value={data.lunchNote ?? ""}
-              onChange={(e) =>
-                update((prev) => ({ ...prev, lunchNote: e.target.value }))
-              }
-              className="mt-2 w-full rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
-            />
+            <>
+              <input
+                type="text"
+                placeholder="What did you have?"
+                value={data.lunchNote ?? ""}
+                onChange={(e) =>
+                  update((prev) => ({ ...prev, lunchNote: e.target.value }))
+                }
+                className="mt-2 w-full rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+              />
+              {suggestedLunchFoods.length > 0 && (
+                <div className="mt-3 rounded-xl border border-border bg-gray-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Lunch items
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Repeated items from your lunch notes become quick checkboxes.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {suggestedLunchFoods.map((food) => {
+                      const checked = selectedLunchFoods.has(food);
+                      return (
+                        <label
+                          key={food}
+                          className={`inline-flex min-h-[36px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
+                            checked
+                              ? "border-accent bg-accent-soft text-gray-800"
+                              : "border-border bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleLunchFood(food)}
+                            className="h-4 w-4 rounded border-border text-accent focus:ring-accent/30"
+                          />
+                          <span>{formatIngredientLabel(food)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <div className="mt-3 pt-3 border-t border-border">
             <span className="text-sm text-muted block mb-2">Midday mood</span>

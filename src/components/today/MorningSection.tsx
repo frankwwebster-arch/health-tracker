@@ -26,7 +26,11 @@ export function MorningSection({ data, update }: Props) {
       <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
         Morning
       </h2>
-      <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
+      <div
+        className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
+          wakeTime && value != null ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+        }`}
+      >
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1">
             <span className="text-sm text-muted">Wake time</span>

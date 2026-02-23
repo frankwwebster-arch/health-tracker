@@ -51,6 +51,11 @@ function migrateDayData(data: DayData): DayData {
     result = { ...rest, workoutMinutes: workoutDone ? 30 : null } as DayData;
   }
 
+  // Ensure lunchFoods exists for old data
+  if (!Array.isArray((result as unknown as Record<string, unknown>).lunchFoods)) {
+    result = { ...result, lunchFoods: [] } as DayData;
+  }
+
   return result;
 }
 
