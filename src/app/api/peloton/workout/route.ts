@@ -12,17 +12,31 @@ interface PelotonLoginResponse {
 }
 
 interface PelotonWorkout {
+  id?: string;
   start_time?: number;
   end_time?: number;
   total_workout_duration?: number;
   status?: string;
+  fitness_discipline?: string;
+  title?: string;
+  name?: string;
   ride?: {
+    title?: string;
+    name?: string;
     duration?: number;
   };
 }
 
 interface PelotonWorkoutsResponse {
   data?: PelotonWorkout[];
+}
+
+interface PelotonWorkoutSummary {
+  id: string;
+  label: string;
+  durationMinutes: number;
+  discipline: string | null;
+  startTime: number | null;
 }
 
 interface PelotonSession {
@@ -94,6 +108,50 @@ function getWorkoutDurationSeconds(workout: PelotonWorkout): number {
   if (rideDuration != null && rideDuration > 0) return rideDuration;
 
   return 0;
+}
+
+function toTitleCase(raw: string): string {
+  return raw
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getDiscipline(workout: PelotonWorkout): string | null {
+  const raw = workout.fitness_discipline;
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  return toTitleCase(raw);
+}
+
+function getWorkoutLabel(workout: PelotonWorkout): string {
+  const rawCandidates = [
+    workout.ride?.title,
+    workout.ride?.name,
+    workout.title,
+    workout.name,
+  ];
+  for (const candidate of rawCandidates) {
+    if (typeof candidate === "string" && candidate.trim() !== "") {
+      return candidate.trim();
+    }
+  }
+
+  return getDiscipline(workout) ?? "Workout";
+}
+
+function toWorkoutSummary(workout: PelotonWorkout, durationSeconds: number, index: number): PelotonWorkoutSummary {
+  const startTime = parseFiniteNumber(workout.start_time);
+  const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
+  const fallbackId = `peloton-${startTime ?? "unknown"}-${durationMinutes}-${index}`;
+
+  return {
+    id: typeof workout.id === "string" && workout.id.trim() !== "" ? workout.id : fallbackId,
+    label: getWorkoutLabel(workout),
+    durationMinutes,
+    discipline: getDiscipline(workout),
+    startTime,
+  };
 }
 
 async function loginToPeloton(): Promise<PelotonSession> {
@@ -179,8 +237,12 @@ async function fetchWorkoutsPage(page: number): Promise<PelotonWorkout[]> {
   return parseWorkouts(firstAttempt);
 }
 
-async function getWorkoutMinutesForDate(dateKey: string, timeZone: string): Promise<number> {
+async function getWorkoutDataForDate(
+  dateKey: string,
+  timeZone: string
+): Promise<{ workoutMinutes: number | null; workouts: PelotonWorkoutSummary[] }> {
   let totalSeconds = 0;
+  const matchedWorkouts: PelotonWorkoutSummary[] = [];
 
   for (let page = 0; page < MAX_WORKOUT_PAGES; page++) {
     const workouts = await fetchWorkoutsPage(page);
@@ -199,7 +261,11 @@ async function getWorkoutMinutesForDate(dateKey: string, timeZone: string): Prom
       if (workoutDateKey !== dateKey) continue;
       if (!isCompletedWorkout(workout.status)) continue;
 
-      totalSeconds += getWorkoutDurationSeconds(workout);
+      const durationSeconds = getWorkoutDurationSeconds(workout);
+      if (durationSeconds <= 0) continue;
+
+      totalSeconds += durationSeconds;
+      matchedWorkouts.push(toWorkoutSummary(workout, durationSeconds, matchedWorkouts.length));
     }
 
     // Workouts are returned newest first; once a page is older than the target day
@@ -209,7 +275,18 @@ async function getWorkoutMinutesForDate(dateKey: string, timeZone: string): Prom
     }
   }
 
-  return Math.round(totalSeconds / 60);
+  matchedWorkouts.sort((a, b) => {
+    if (a.startTime == null && b.startTime == null) return 0;
+    if (a.startTime == null) return 1;
+    if (b.startTime == null) return -1;
+    return a.startTime - b.startTime;
+  });
+
+  const workoutMinutes = Math.round(totalSeconds / 60);
+  return {
+    workoutMinutes: workoutMinutes > 0 ? workoutMinutes : null,
+    workouts: matchedWorkouts,
+  };
 }
 
 export async function GET(request: Request) {
@@ -226,19 +303,25 @@ export async function GET(request: Request) {
   const timeZone = isValidTimeZone(rawTimeZone) ? rawTimeZone : "UTC";
 
   if (!process.env.PELOTON_USERNAME || !process.env.PELOTON_PASSWORD) {
-    return NextResponse.json({ workoutMinutes: null, configured: false });
+    return NextResponse.json({
+      workoutMinutes: null,
+      workouts: [],
+      configured: false,
+    });
   }
 
   try {
-    const workoutMinutes = await getWorkoutMinutesForDate(dateKey, timeZone);
+    const workoutData = await getWorkoutDataForDate(dateKey, timeZone);
     return NextResponse.json({
-      workoutMinutes: workoutMinutes > 0 ? workoutMinutes : null,
+      workoutMinutes: workoutData.workoutMinutes,
+      workouts: workoutData.workouts,
       configured: true,
     });
   } catch {
     return NextResponse.json(
       {
         workoutMinutes: null,
+        workouts: [],
         configured: true,
         error: "Failed to fetch workouts from Peloton",
       },

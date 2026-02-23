@@ -74,6 +74,7 @@ export function MigrationBanner() {
     !d.snackEaten &&
     d.waterMl === 0 &&
     d.workoutMinutes == null &&
+    (d.workoutSessions?.length ?? 0) === 0 &&
     !d.walkDone &&
     d.stepsCount == null &&
     d.weightKg == null &&

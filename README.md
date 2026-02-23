@@ -23,8 +23,12 @@ PELOTON_PASSWORD=your-peloton-password
 
 Behavior:
 - On `/today`, if `workoutMinutes` is empty for the selected date, the app calls
-  an internal route (`/api/peloton/workout`) and imports total Peloton workout
-  minutes for that day.
+  an internal route (`/api/peloton/workout`) and imports Peloton workouts for
+  that day.
+- You can also press **Sync from Peloton** in the Movement section to re-sync on
+  demand.
+- Multiple same-day workouts are supported (for example: bike + strength), and
+  each workout is shown with its own duration.
 - Manual edits are preserved: if you already set workout minutes, Peloton data
   does not overwrite it.
 
