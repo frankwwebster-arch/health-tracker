@@ -9,11 +9,34 @@ const PRESET_MINS = [30, 45, 60] as const;
 interface Props {
   data: DayData;
   update: (fn: UpdateFn) => void;
+  onSyncPeloton?: () => Promise<void> | void;
+  pelotonSyncing?: boolean;
+  pelotonSyncStatus?: string | null;
+  pelotonConfigured?: boolean | null;
 }
 
-export function MovementSection({ data, update }: Props) {
+function createManualSession(minutes: number) {
+  return {
+    id: `manual-${Date.now()}`,
+    source: "manual" as const,
+    label: "Manual workout",
+    durationMinutes: minutes,
+    discipline: null,
+    startTime: null,
+  };
+}
+
+export function MovementSection({
+  data,
+  update,
+  onSyncPeloton,
+  pelotonSyncing = false,
+  pelotonSyncStatus = null,
+  pelotonConfigured = null,
+}: Props) {
   const isPreset = data.workoutMinutes != null && PRESET_MINS.includes(data.workoutMinutes as (typeof PRESET_MINS)[number]);
   const isCustom = data.workoutMinutes != null && !isPreset;
+  const sessions = data.workoutSessions ?? [];
 
   return (
     <section className="mb-10">
@@ -26,7 +49,27 @@ export function MovementSection({ data, update }: Props) {
             data.workoutMinutes != null ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
           }`}
         >
-          <p className="font-medium text-gray-800 mb-3">Workout</p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="font-medium text-gray-800">Workout</p>
+            {onSyncPeloton && (
+              <button
+                type="button"
+                onClick={() => void onSyncPeloton()}
+                disabled={pelotonSyncing}
+                className="min-h-[38px] px-3 py-2 rounded-xl text-xs font-medium bg-white/80 text-gray-700 hover:bg-white border border-border disabled:opacity-60"
+              >
+                {pelotonSyncing ? "Syncing…" : "Sync from Peloton"}
+              </button>
+            )}
+          </div>
+          {pelotonConfigured === false && (
+            <p className="mb-2 text-xs text-muted">
+              Peloton sync is not configured. Add PELOTON_USERNAME and PELOTON_PASSWORD.
+            </p>
+          )}
+          {pelotonSyncStatus && (
+            <p className="mb-2 text-xs text-muted">{pelotonSyncStatus}</p>
+          )}
           <div className="flex flex-wrap gap-2">
             {PRESET_MINS.map((mins) => {
               const selected = data.workoutMinutes === mins;
@@ -44,9 +87,17 @@ export function MovementSection({ data, update }: Props) {
                     checked={selected}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        update((prev) => ({ ...prev, workoutMinutes: mins }));
+                        update((prev) => ({
+                          ...prev,
+                          workoutMinutes: mins,
+                          workoutSessions: [createManualSession(mins)],
+                        }));
                       } else {
-                        update((prev) => ({ ...prev, workoutMinutes: null }));
+                        update((prev) => ({
+                          ...prev,
+                          workoutMinutes: null,
+                          workoutSessions: [],
+                        }));
                       }
                     }}
                     className="sr-only"
@@ -66,20 +117,55 @@ export function MovementSection({ data, update }: Props) {
                 onChange={(e) => {
                   const v = e.target.value;
                   if (v === "") {
-                    update((prev) => ({ ...prev, workoutMinutes: null }));
+                    update((prev) => ({
+                      ...prev,
+                      workoutMinutes: null,
+                      workoutSessions: [],
+                    }));
                   } else {
                     const n = Math.min(240, Math.max(1, parseInt(v, 10) || 0));
-                    update((prev) => ({ ...prev, workoutMinutes: n }));
+                    update((prev) => ({
+                      ...prev,
+                      workoutMinutes: n,
+                      workoutSessions: [createManualSession(n)],
+                    }));
                   }
                 }}
                 className="w-16 rounded-lg border-0 bg-transparent px-1 py-0 text-gray-800 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </label>
           </div>
+          {sessions.length > 0 && (
+            <div className="mt-3 rounded-xl border border-border bg-white/70 p-3">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Workouts logged ({sessions.length})
+              </p>
+              <ul className="space-y-1.5">
+                {sessions.map((session) => (
+                  <li
+                    key={session.id}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="text-gray-700">
+                      {session.label}
+                      {session.discipline ? ` (${session.discipline})` : ""}
+                    </span>
+                    <span className="text-muted">{session.durationMinutes} min</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {data.workoutMinutes != null && (
             <button
               type="button"
-              onClick={() => update((prev) => ({ ...prev, workoutMinutes: null }))}
+              onClick={() =>
+                update((prev) => ({
+                  ...prev,
+                  workoutMinutes: null,
+                  workoutSessions: [],
+                }))
+              }
               className="mt-2 text-sm text-muted hover:text-gray-800"
             >
               Clear

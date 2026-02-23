@@ -11,9 +11,30 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). The app redirects to `/today`.
 
+## Peloton workout sync (optional)
+
+If you set Peloton credentials in `.env.local`, the app can auto-populate the
+`Workout` field from your Peloton workouts for the selected day.
+
+```bash
+PELOTON_USERNAME=your-peloton-email
+PELOTON_PASSWORD=your-peloton-password
+```
+
+Behavior:
+- On `/today`, if `workoutMinutes` is empty for the selected date, the app calls
+  an internal route (`/api/peloton/workout`) and imports Peloton workouts for
+  that day.
+- You can also press **Sync from Peloton** in the Movement section to re-sync on
+  demand.
+- Multiple same-day workouts are supported (for example: bike + strength), and
+  each workout is shown with its own duration.
+- Manual edits are preserved: if you already set workout minutes, Peloton data
+  does not overwrite it.
+
 ## Features
 
-- **Today (`/today`)**: Tick boxes for medication (Dexamphetamine (3x daily), Bupropion), lunch, afternoon snack, water (goal + quick add/undo), workout, walk. Daily summary with calm, non-judgmental copy.
+- **Today (`/today`)**: Tick boxes for medication (Dexamphetamine (3x daily), Bupropion), lunch, afternoon snack, water (goal + quick add/undo), workout, walk. Optional Peloton auto-import can fill workout minutes. Daily summary with calm, non-judgmental copy.
 - **Settings (`/settings`)**: Enable/disable reminders, weekday-only, water goal and interval, lunch and medication times, test notification, reset today.
 - **Reminders**: Client-side scheduler (every 60s). Optional browser notifications; in-app banners as fallback. Weekdays only, quiet hours 20:00–07:00, 45‑min cooldown. Medication and lunch at set times; water every N minutes in configured window. Max 2 banners visible; “More reminders (n)” for the rest. Actions: Mark as taken, Snooze 30/60 min; water banner has +250 ml quick action.
 - **Persistence**: IndexedDB via `idb-keyval`. All data stays on device. Works offline after first load.

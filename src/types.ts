@@ -14,6 +14,17 @@ export interface WaterLogEntry {
   timestamp: number;
 }
 
+export type WorkoutSource = "manual" | "peloton";
+
+export interface WorkoutSession {
+  id: string;
+  source: WorkoutSource;
+  label: string;
+  durationMinutes: number;
+  discipline: string | null;
+  startTime: number | null; // unix seconds
+}
+
 export interface DayData {
   medication: {
     dex: MultiDoseMedication;
@@ -30,6 +41,7 @@ export interface DayData {
   waterMl: number;
   waterLog: WaterLogEntry[];
   workoutMinutes: number | null; // 30, 45, 60, or custom
+  workoutSessions: WorkoutSession[];
   walkDone: boolean;
   stepsCount: number | null;
   weightKg: number | null;
@@ -125,6 +137,7 @@ export function createEmptyDayData(): DayData {
     waterMl: 0,
     waterLog: [],
     workoutMinutes: null,
+    workoutSessions: [],
     walkDone: false,
     stepsCount: null,
     weightKg: null,
