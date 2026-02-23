@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DayData, Settings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/types";
+import { DoneWithUndoAction } from "./DoneWithUndoAction";
 
 function formatTime(ms: number): string {
   const d = new Date(ms);
@@ -123,9 +124,9 @@ export function MedicationSection({ data, settings, update }: Props) {
                   </div>
                   <div className="flex gap-2">
                     {entry.taken ? (
-                      <button
-                        type="button"
-                        onClick={() =>
+                      <DoneWithUndoAction
+                        compact
+                        onUndo={() =>
                           update((prev) => {
                             const doses = [...(prev.medication.dex?.doses ?? dexDoses)];
                             doses[i] = { taken: false, takenAt: null };
@@ -138,10 +139,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                             };
                           })
                         }
-                        className="px-3 py-2 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
-                      >
-                        Undo
-                      </button>
+                      />
                     ) : (
                       <button
                         type="button"
@@ -186,9 +184,8 @@ export function MedicationSection({ data, settings, update }: Props) {
             </p>
           </div>
           {data.medication.bupropion.taken ? (
-            <button
-              type="button"
-              onClick={() =>
+            <DoneWithUndoAction
+              onUndo={() =>
                 update((prev) => ({
                   ...prev,
                   medication: {
@@ -197,10 +194,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                   },
                 }))
               }
-              className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
-            >
-              Undo
-            </button>
+            />
           ) : (
             <button
               type="button"
@@ -285,9 +279,8 @@ export function MedicationSection({ data, settings, update }: Props) {
               </div>
               <div className="flex gap-2">
                 {entry.taken ? (
-                  <button
-                    type="button"
-                    onClick={() =>
+                  <DoneWithUndoAction
+                    onUndo={() =>
                       update((prev) => ({
                         ...prev,
                         customMedsTaken: {
@@ -296,10 +289,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         },
                       }))
                     }
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
-                  >
-                    Undo
-                  </button>
+                  />
                 ) : (
                   <button
                     type="button"

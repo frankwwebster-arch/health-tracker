@@ -1,6 +1,7 @@
 "use client";
 
 import type { DayData } from "@/types";
+import { DoneWithUndoAction } from "./DoneWithUndoAction";
 
 type UpdateFn = (prev: DayData) => DayData;
 
@@ -95,27 +96,23 @@ export function MovementSection({ data, update }: Props) {
               </p>
             </div>
             {data.walkDone ? (
+              <DoneWithUndoAction
+                onUndo={() =>
+                  update((prev) => ({ ...prev, walkDone: false }))
+                }
+              />
+            ) : (
               <button
                 type="button"
                 onClick={() =>
-                  update((prev) => ({ ...prev, walkDone: false }))
+                  update((prev) => ({ ...prev, walkDone: true }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
-            >
-              Undo
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() =>
-                update((prev) => ({ ...prev, walkDone: true }))
-              }
-              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
-            >
-              Mark done
-            </button>
-          )}
-        </div>
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Mark done
+              </button>
+            )}
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <label htmlFor="steps" className="text-sm text-muted shrink-0">
               Steps:
