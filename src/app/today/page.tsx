@@ -47,13 +47,14 @@ export default function TodayPage() {
         if (!response.ok) return;
 
         const payload = (await response.json()) as { workoutMinutes?: number | null };
-        if (typeof payload.workoutMinutes !== "number" || payload.workoutMinutes <= 0) {
+        const pelotonMinutes = payload.workoutMinutes;
+        if (typeof pelotonMinutes !== "number" || pelotonMinutes <= 0) {
           return;
         }
 
         await update((prev) =>
           prev.workoutMinutes == null
-            ? { ...prev, workoutMinutes: payload.workoutMinutes }
+            ? { ...prev, workoutMinutes: pelotonMinutes }
             : prev
         );
       } catch (error) {
