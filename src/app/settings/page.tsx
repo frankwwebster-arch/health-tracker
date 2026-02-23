@@ -193,31 +193,49 @@ export default function SettingsPage() {
                 className="w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent/30"
               />
             </label>
-            {(
-              [
-                ["dex1", "Dex #1"],
-                ["dex2", "Dex #2"],
-                ["dex3", "Dex #3"],
-                ["bupropion", "Bupropion"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="block">
-                <span className="font-medium text-gray-800">{label}</span>
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium text-gray-800 mb-2">Dex (3 doses)</p>
+                <div className="flex gap-2">
+                  {(Array.isArray(settings.medicationTimes.dex) ? settings.medicationTimes.dex : ["07:00", "12:30", "15:30"]).map((t, i) => (
+                    <label key={i} className="flex-1">
+                      <span className="sr-only">Dose {i + 1}</span>
+                      <input
+                        type="time"
+                        value={t}
+                        onChange={(e) => {
+                          const next = [...(Array.isArray(settings.medicationTimes.dex) ? settings.medicationTimes.dex : ["07:00", "12:30", "15:30"])];
+                          next[i] = e.target.value;
+                          update({
+                            medicationTimes: {
+                              ...settings.medicationTimes,
+                              dex: next,
+                            },
+                          });
+                        }}
+                        className="block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className="block">
+                <span className="font-medium text-gray-800">Bupropion</span>
                 <input
                   type="time"
-                  value={settings.medicationTimes[key]}
+                  value={settings.medicationTimes.bupropion}
                   onChange={(e) =>
                     update({
                       medicationTimes: {
                         ...settings.medicationTimes,
-                        [key]: e.target.value,
+                        bupropion: e.target.value,
                       },
                     })
                   }
                   className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
                 />
               </label>
-            ))}
+            </div>
           </div>
         </section>
 
@@ -231,12 +249,10 @@ export default function SettingsPage() {
             </p>
             {(
               [
-                ["dex1", "Dex #1"],
-                ["dex2", "Dex #2"],
-                ["dex3", "Dex #3"],
-                ["bupropion", "Bupropion"],
+                ["dex", "Dex (3x daily)", 3],
+                ["bupropion", "Bupropion", 1],
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, label, defaultPerDay]) => (
               <div key={key} className="mb-4 last:mb-0">
                 <span className="font-medium text-gray-800 block mb-1">{label}</span>
                 <div className="flex gap-2">
@@ -251,12 +267,7 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         update({
                           medicationSupply: {
-                            ...(settings.medicationSupply ?? {
-                              dex1: 0,
-                              dex2: 0,
-                              dex3: 0,
-                              bupropion: 0,
-                            }),
+                            ...(settings.medicationSupply ?? { dex: 0, bupropion: 0 }),
                             [key]: Math.max(0, parseInt(e.target.value, 10) || 0),
                           },
                         })
@@ -267,16 +278,11 @@ export default function SettingsPage() {
                   <label className="w-28">
                     <span className="sr-only">Per day</span>
                     <select
-                      value={settings.medicationPillsPerDay?.[key] ?? 1}
+                      value={settings.medicationPillsPerDay?.[key] ?? defaultPerDay}
                       onChange={(e) =>
                         update({
                           medicationPillsPerDay: {
-                            ...(settings.medicationPillsPerDay ?? {
-                              dex1: 1,
-                              dex2: 1,
-                              dex3: 1,
-                              bupropion: 1,
-                            }),
+                            ...(settings.medicationPillsPerDay ?? { dex: 3, bupropion: 1 }),
                             [key]: parseInt(e.target.value, 10),
                           },
                         })
@@ -293,6 +299,120 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Additional medication & supplements
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              Add custom medications or supplements with your own dosing.
+            </p>
+            {(settings.customMeds ?? []).map((med) => (
+              <div
+                key={med.id}
+                className="mb-4 p-3 rounded-xl border border-border bg-surface/50"
+              >
+                <div className="flex justify-between items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={med.name}
+                    onChange={(e) =>
+                      update({
+                        customMeds: (settings.customMeds ?? []).map((m) =>
+                          m.id === med.id ? { ...m, name: e.target.value } : m
+                        ),
+                      })
+                    }
+                    placeholder="Name"
+                    className="flex-1 font-medium text-gray-800 bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none px-0 py-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update({
+                        customMeds: (settings.customMeds ?? []).filter((m) => m.id !== med.id),
+                      })
+                    }
+                    className="text-sm text-muted hover:text-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex-1 min-w-[80px]">
+                    <span className="sr-only">Time</span>
+                    <input
+                      type="time"
+                      value={med.time}
+                      onChange={(e) =>
+                        update({
+                          customMeds: (settings.customMeds ?? []).map((m) =>
+                            m.id === med.id ? { ...m, time: e.target.value } : m
+                          ),
+                        })
+                      }
+                      className="block w-full rounded-xl border border-border px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                  <label className="w-20">
+                    <span className="sr-only">Per day</span>
+                    <select
+                      value={med.pillsPerDay}
+                      onChange={(e) =>
+                        update({
+                          customMeds: (settings.customMeds ?? []).map((m) =>
+                            m.id === med.id ? { ...m, pillsPerDay: parseInt(e.target.value, 10) } : m
+                          ),
+                        })
+                      }
+                      className="block w-full rounded-xl border border-border px-2 py-1.5 text-sm"
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n}/day
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="w-20">
+                    <span className="sr-only">Supply</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={999}
+                      placeholder="Held"
+                      value={med.supply}
+                      onChange={(e) =>
+                        update({
+                          customMeds: (settings.customMeds ?? []).map((m) =>
+                            m.id === med.id ? { ...m, supply: Math.max(0, parseInt(e.target.value, 10) || 0) } : m
+                          ),
+                        })
+                      }
+                      className="block w-full rounded-xl border border-border px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const id = crypto.randomUUID();
+                update({
+                  customMeds: [
+                    ...(settings.customMeds ?? []),
+                    { id, name: "New medication", time: "08:00", pillsPerDay: 1, supply: 0 },
+                  ],
+                });
+              }}
+              className="mt-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-accent-soft text-accent hover:bg-accent-soft/80 border border-accent/30"
+            >
+              + Add medication or supplement
+            </button>
           </div>
         </section>
 

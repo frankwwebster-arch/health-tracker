@@ -22,17 +22,44 @@ export default function TodayPage() {
   const { settings } = useSettings();
   const isToday = selectedDateKey === getDateKey();
 
-  const handleMarkAsTaken = (type: ReminderType, _id: string) => {
+  const handleMarkAsTaken = (type: ReminderType, id: string) => {
     if (type === "lunch") {
       update((prev) => ({ ...prev, lunchEaten: true, lunchAt: Date.now() }));
       return;
     }
-    if (type === "dex1" || type === "dex2" || type === "dex3" || type === "bupropion") {
+    if (type === "bupropion") {
       update((prev) => ({
         ...prev,
         medication: {
           ...prev.medication,
-          [type]: { taken: true, takenAt: Date.now() },
+          bupropion: { taken: true, takenAt: Date.now() },
+        },
+      }));
+      return;
+    }
+    const dexMatch = (type as string).match(/^dex-(\d+)$/);
+    if (dexMatch) {
+      const doseIndex = parseInt(dexMatch[1], 10);
+      update((prev) => {
+        const doses = [...(prev.medication.dex?.doses ?? [{ taken: false, takenAt: null }, { taken: false, takenAt: null }, { taken: false, takenAt: null }])];
+        doses[doseIndex] = { taken: true, takenAt: Date.now() };
+        return {
+          ...prev,
+          medication: {
+            ...prev.medication,
+            dex: { doses },
+          },
+        };
+      });
+      return;
+    }
+    if (type === "custom") {
+      const medId = id.startsWith("custom-") ? id.slice(7) : id;
+      update((prev) => ({
+        ...prev,
+        customMedsTaken: {
+          ...(prev.customMedsTaken ?? {}),
+          [medId]: { taken: true, takenAt: Date.now() },
         },
       }));
     }
@@ -72,7 +99,11 @@ export default function TodayPage() {
         <MovementSection data={data} update={update} />
         <WeightSection data={data} update={update} />
         <SleepMoodSection data={data} update={update} />
-        <DailySummary data={data} waterGoal={settings?.waterGoalMl ?? 2000} />
+        <DailySummary
+          data={data}
+          waterGoal={settings?.waterGoalMl ?? 2000}
+          customMedIds={(settings?.customMeds ?? []).map((m) => m.id)}
+        />
       </main>
     </>
   );

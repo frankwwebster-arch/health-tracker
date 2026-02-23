@@ -1,5 +1,5 @@
 import { get, set, del, createStore, keys } from "idb-keyval";
-import type { DayData, Settings } from "@/types";
+import type { DayData, Settings, MedicationEntry } from "@/types";
 import {
   createEmptyDayData,
   getDateKey,
@@ -12,19 +12,85 @@ const LAST_NOTIFIED_KEY = "health-last-notified";
 
 const daysStore = createStore("health-tracker-db", DAYS_STORE);
 
+function migrateDayData(data: DayData): DayData {
+  const base = createEmptyDayData();
+  let result: DayData;
+
+  if ((data.medication as Record<string, unknown>)?.dex1 && !(data.medication as Record<string, unknown>)?.dex) {
+    const old = data.medication as unknown as {
+      dex1?: MedicationEntry;
+      dex2?: MedicationEntry;
+      dex3?: MedicationEntry;
+      bupropion?: MedicationEntry;
+    };
+    result = {
+      ...base,
+      ...data,
+      medication: {
+        dex: {
+          doses: [
+            old.dex1 ?? { taken: false, takenAt: null },
+            old.dex2 ?? { taken: false, takenAt: null },
+            old.dex3 ?? { taken: false, takenAt: null },
+          ],
+        },
+        bupropion: old.bupropion ?? base.medication.bupropion,
+      },
+    } as DayData;
+  } else {
+    result = { ...base, ...data } as DayData;
+  }
+
+  // Migrate old workoutDone to workoutMinutes
+  const raw = result as unknown as Record<string, unknown>;
+  if ("workoutDone" in raw && typeof raw.workoutDone === "boolean") {
+    const { workoutDone, ...rest } = raw;
+    result = { ...rest, workoutMinutes: workoutDone ? 30 : null } as DayData;
+  }
+
+  return result;
+}
+
 export async function getDayData(dateKey: string): Promise<DayData> {
   const data = await get<DayData>(dateKey, daysStore);
   if (!data) return createEmptyDayData();
-  return { ...createEmptyDayData(), ...data } as DayData;
+  return migrateDayData(data);
 }
 
 export async function setDayData(dateKey: string, data: DayData): Promise<void> {
   await set(dateKey, data, daysStore);
 }
 
+function migrateSettings(s: Settings): Settings {
+  const def = DEFAULT_SETTINGS;
+  const times = s.medicationTimes as Record<string, unknown>;
+  if (times?.dex1 && !Array.isArray(times?.dex)) {
+    return {
+      ...def,
+      ...s,
+      medicationTimes: {
+        dex: [String(times.dex1), String(times.dex2 ?? "12:30"), String(times.dex3 ?? "15:30")],
+        bupropion: String(times.bupropion ?? def.medicationTimes.bupropion),
+      },
+      medicationSupply: {
+        dex:
+          ((s.medicationSupply as Record<string, number>)?.dex1 ?? 0) +
+          ((s.medicationSupply as Record<string, number>)?.dex2 ?? 0) +
+          ((s.medicationSupply as Record<string, number>)?.dex3 ?? 0),
+        bupropion: (s.medicationSupply as Record<string, number>)?.bupropion ?? 0,
+      },
+      medicationPillsPerDay: {
+        dex: 3,
+        bupropion: (s.medicationPillsPerDay as Record<string, number>)?.bupropion ?? 1,
+      },
+    };
+  }
+  return { ...def, ...s };
+}
+
 export async function getSettings(): Promise<Settings> {
   const s = await get<Settings>(SETTINGS_KEY);
-  return s ?? { ...DEFAULT_SETTINGS };
+  return s ? migrateSettings(s) : { ...DEFAULT_SETTINGS };
 }
 
 export async function setSettings(settings: Settings): Promise<void> {

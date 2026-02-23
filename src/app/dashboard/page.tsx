@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>(14);
   const [days, setDays] = useState<{ key: string; data: DayData }[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
+  const [customMedIds, setCustomMedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function DashboardPage() {
 
       setDays(dataList);
       setWaterGoal(settings?.waterGoalMl ?? 2000);
+      setCustomMedIds((settings?.customMeds ?? []).map((m) => m.id));
       setLoading(false);
     }
     load();
@@ -58,29 +60,40 @@ export default function DashboardPage() {
     );
   }
 
-  const medTotal = days.length * 4;
+  const medTotal = days.length * (3 + 1 + customMedIds.length); // 3 dex + 1 bupropion + custom
   let medTaken = 0;
   let waterHit = 0;
   let lunchLogged = 0;
   let movementDays = 0;
   const sleepHoursList: number[] = [];
   const weightList: number[] = [];
+  let exerciseMinutesTotal = 0;
+  let exerciseDays = 0;
+  const stepsList: number[] = [];
   const sentimentMorning: number[] = [];
   const sentimentMidday: number[] = [];
   const sentimentEvening: number[] = [];
 
   for (const { data } of days) {
-    if (data.medication.dex1.taken) medTaken++;
-    if (data.medication.dex2.taken) medTaken++;
-    if (data.medication.dex3.taken) medTaken++;
+    for (const d of data.medication.dex?.doses ?? []) {
+      if (d.taken) medTaken++;
+    }
     if (data.medication.bupropion.taken) medTaken++;
+    for (const id of customMedIds) {
+      if (data.customMedsTaken?.[id]?.taken) medTaken++;
+    }
     if (data.waterMl >= waterGoal) waterHit++;
     if (data.lunchEaten) lunchLogged++;
-    if (data.workoutDone || data.walkDone) movementDays++;
+    if (data.workoutMinutes != null || data.walkDone) movementDays++;
     if (data.bedtime && data.wakeTime) {
       sleepHoursList.push(sleepHours(data.bedtime, data.wakeTime));
     }
     if (data.weightKg != null) weightList.push(data.weightKg);
+    if (data.workoutMinutes != null) {
+      exerciseMinutesTotal += data.workoutMinutes;
+      exerciseDays++;
+    }
+    if (data.stepsCount != null) stepsList.push(data.stepsCount);
     if (data.sentimentMorning != null) sentimentMorning.push(data.sentimentMorning);
     if (data.sentimentMidday != null) sentimentMidday.push(data.sentimentMidday);
     if (data.sentimentEvening != null) sentimentEvening.push(data.sentimentEvening);
@@ -146,19 +159,36 @@ export default function DashboardPage() {
             days.length > 0 ? `${Math.round((movementDays / days.length) * 100)}%` : "—",
             `${movementDays} days with workout or walk`
           )}
+          {statCard(
+            "Exercise minutes",
+            exerciseMinutesTotal > 0 ? `${exerciseMinutesTotal} min` : "—",
+            exerciseDays > 0
+              ? `${exerciseDays} workout${exerciseDays === 1 ? "" : "s"} · avg ${Math.round(exerciseMinutesTotal / exerciseDays)} min`
+              : "No workouts logged"
+          )}
+          {statCard(
+            "Steps",
+            stepsList.length > 0
+              ? `${stepsList.reduce((a, b) => a + b, 0).toLocaleString()} total`
+              : "—",
+            stepsList.length > 0
+              ? `avg ${Math.round(stepsList.reduce((a, b) => a + b, 0) / stepsList.length).toLocaleString()} · ${stepsList.length} day${stepsList.length === 1 ? "" : "s"} logged`
+              : "Log on Today"
+          )}
+          {statCard(
+            "Weight",
+            weightList.length > 0 ? `${weightList[weightList.length - 1].toFixed(1)} kg` : "—",
+            weightList.length > 1
+              ? `Range: ${Math.min(...weightList).toFixed(1)}–${Math.max(...weightList).toFixed(1)} kg`
+              : weightList.length === 1
+                ? "1 entry"
+                : "Log on Today"
+          )}
           {avgSleep != null &&
             statCard(
               "Avg sleep",
               `${avgSleep.toFixed(1)}h`,
               `${sleepHoursList.length} days logged`
-            )}
-          {weightList.length > 0 &&
-            statCard(
-              "Weight",
-              `${weightList[weightList.length - 1].toFixed(1)} kg`,
-              weightList.length > 1
-                ? `Range: ${Math.min(...weightList).toFixed(1)}–${Math.max(...weightList).toFixed(1)} kg`
-                : undefined
             )}
           {(avgSentimentM != null || avgSentimentD != null || avgSentimentE != null) &&
             statCard(

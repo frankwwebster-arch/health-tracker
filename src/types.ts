@@ -1,8 +1,12 @@
-export type MedicationKey = "dex1" | "dex2" | "dex3" | "bupropion";
+export type MedicationKey = "dex" | "bupropion";
 
 export interface MedicationEntry {
   taken: boolean;
   takenAt: number | null;
+}
+
+export interface MultiDoseMedication {
+  doses: MedicationEntry[];
 }
 
 export interface WaterLogEntry {
@@ -12,9 +16,7 @@ export interface WaterLogEntry {
 
 export interface DayData {
   medication: {
-    dex1: MedicationEntry;
-    dex2: MedicationEntry;
-    dex3: MedicationEntry;
+    dex: MultiDoseMedication;
     bupropion: MedicationEntry;
   };
   lunchEaten: boolean;
@@ -27,7 +29,7 @@ export interface DayData {
   snackNote: string;
   waterMl: number;
   waterLog: WaterLogEntry[];
-  workoutDone: boolean;
+  workoutMinutes: number | null; // 30, 45, 60, or custom
   walkDone: boolean;
   stepsCount: number | null;
   weightKg: number | null;
@@ -37,6 +39,7 @@ export interface DayData {
   sentimentMorning: number | null; // 1-5
   sentimentMidday: number | null;
   sentimentEvening: number | null;
+  customMedsTaken: Record<string, MedicationEntry>; // id -> { taken, takenAt }
 }
 
 export interface ReminderLastNotified {
@@ -53,23 +56,26 @@ export interface Settings {
   lunchReminderTime: string;
   medicationRemindersEnabled: boolean;
   medicationTimes: {
-    dex1: string;
-    dex2: string;
-    dex3: string;
+    dex: string[]; // e.g. ["07:00", "12:30", "15:30"]
     bupropion: string;
   };
   medicationSupply: {
-    dex1: number;
-    dex2: number;
-    dex3: number;
+    dex: number;
     bupropion: number;
   };
   medicationPillsPerDay: {
-    dex1: number;
-    dex2: number;
-    dex3: number;
+    dex: number;
     bupropion: number;
   };
+  customMeds: CustomMed[];
+}
+
+export interface CustomMed {
+  id: string;
+  name: string;
+  time: string; // "HH:mm"
+  pillsPerDay: number;
+  supply: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -82,31 +88,30 @@ export const DEFAULT_SETTINGS: Settings = {
   lunchReminderTime: "12:30",
   medicationRemindersEnabled: true,
   medicationTimes: {
-    dex1: "07:00",
-    dex2: "12:30",
-    dex3: "15:30",
+    dex: ["07:00", "12:30", "15:30"],
     bupropion: "07:30",
   },
   medicationSupply: {
-    dex1: 0,
-    dex2: 0,
-    dex3: 0,
+    dex: 0,
     bupropion: 0,
   },
   medicationPillsPerDay: {
-    dex1: 1,
-    dex2: 1,
-    dex3: 1,
+    dex: 3,
     bupropion: 1,
   },
+  customMeds: [],
 };
 
 export function createEmptyDayData(): DayData {
   return {
     medication: {
-      dex1: { taken: false, takenAt: null },
-      dex2: { taken: false, takenAt: null },
-      dex3: { taken: false, takenAt: null },
+      dex: {
+        doses: [
+          { taken: false, takenAt: null },
+          { taken: false, takenAt: null },
+          { taken: false, takenAt: null },
+        ],
+      },
       bupropion: { taken: false, takenAt: null },
     },
     lunchEaten: false,
@@ -119,7 +124,7 @@ export function createEmptyDayData(): DayData {
     snackNote: "",
     waterMl: 0,
     waterLog: [],
-    workoutDone: false,
+    workoutMinutes: null,
     walkDone: false,
     stepsCount: null,
     weightKg: null,
@@ -129,6 +134,7 @@ export function createEmptyDayData(): DayData {
     sentimentMorning: null,
     sentimentMidday: null,
     sentimentEvening: null,
+    customMedsTaken: {},
   };
 }
 

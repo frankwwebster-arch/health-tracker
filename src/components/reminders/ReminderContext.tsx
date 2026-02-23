@@ -9,13 +9,14 @@ import {
 } from "react";
 
 export type ReminderType =
-  | "dex1"
-  | "dex2"
-  | "dex3"
+  | "dex-0"
+  | "dex-1"
+  | "dex-2"
   | "bupropion"
   | "lunch"
   | "water"
-  | "supply";
+  | "supply"
+  | "custom";
 
 export interface ActiveReminder {
   id: string;

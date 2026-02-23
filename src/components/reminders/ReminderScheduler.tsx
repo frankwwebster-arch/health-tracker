@@ -84,22 +84,42 @@ export function ReminderScheduler() {
 
       // Medication
       if (settings.medicationRemindersEnabled) {
-        const meds: { key: ReminderType; timeKey: keyof Settings["medicationTimes"]; label: string }[] = [
-          { key: "dex1", timeKey: "dex1", label: "Dex #1" },
-          { key: "bupropion", timeKey: "bupropion", label: "Bupropion" },
-          { key: "dex2", timeKey: "dex2", label: "Dex #2" },
-          { key: "dex3", timeKey: "dex3", label: "Dex #3" },
-        ];
-        for (const { key, timeKey, label } of meds) {
-          const taken = key === "bupropion"
-            ? dayData.medication.bupropion.taken
-            : dayData.medication[key as keyof DayData["medication"]].taken;
-          const scheduled = parseTime(settings.medicationTimes[timeKey]);
+        const dexTimes = Array.isArray(settings.medicationTimes.dex)
+          ? settings.medicationTimes.dex
+          : ["07:00", "12:30", "15:30"];
+        for (let i = 0; i < dexTimes.length; i++) {
+          const key = `dex-${i}` as ReminderType;
+          const taken = dayData.medication.dex?.doses?.[i]?.taken ?? false;
+          const scheduled = parseTime(dexTimes[i]);
           const atTime = now >= scheduled && now < scheduled + 60;
           await maybeNotify(
             getReminderId(key),
-            `${label} – time to take`,
+            `Dex dose ${i + 1} – time to take`,
             key,
+            !taken && atTime
+          );
+        }
+        const bupropionTaken = dayData.medication.bupropion.taken;
+        const bupropionScheduled = parseTime(settings.medicationTimes.bupropion);
+        const bupropionAtTime = now >= bupropionScheduled && now < bupropionScheduled + 60;
+        await maybeNotify(
+          getReminderId("bupropion"),
+          "Bupropion – time to take",
+          "bupropion",
+          !bupropionTaken && bupropionAtTime
+        );
+      }
+
+      // Custom medications
+      if (settings.medicationRemindersEnabled && settings.customMeds?.length) {
+        for (const med of settings.customMeds) {
+          const taken = dayData.customMedsTaken?.[med.id]?.taken ?? false;
+          const scheduled = parseTime(med.time);
+          const atTime = now >= scheduled && now < scheduled + 60;
+          await maybeNotify(
+            `custom-${med.id}`,
+            `${med.name} – time to take`,
+            "custom" as ReminderType,
             !taken && atTime
           );
         }
@@ -150,14 +170,18 @@ export function ReminderScheduler() {
       const supplyId = "supply";
       const supplyCooldown = 24 * 60 * 60 * 1000;
       const lastSupply = lastNotified[supplyId] ?? 0;
-      const pillsPerDay = settings.medicationPillsPerDay ?? { dex1: 1, dex2: 1, dex3: 1, bupropion: 1 };
-      const supplyLow =
-        settings.medicationSupply &&
+      const pillsPerDay = settings.medicationPillsPerDay ?? { dex: 3, bupropion: 1 };
+      const builtInLow = settings.medicationSupply &&
         Object.entries(settings.medicationSupply).some(([key, held]) => {
           const perDay = pillsPerDay[key as keyof typeof pillsPerDay] || 1;
           const daysLeft = perDay > 0 ? Math.floor(held / perDay) : 0;
           return held > 0 && daysLeft <= 7;
         });
+      const customLow = settings.customMeds?.some((med) => {
+        const daysLeft = med.pillsPerDay > 0 ? Math.floor(med.supply / med.pillsPerDay) : 0;
+        return med.supply > 0 && daysLeft <= 7;
+      });
+      const supplyLow = builtInLow || customLow;
       const supplyOk =
         settings.remindersEnabled &&
         supplyLow &&
@@ -165,14 +189,23 @@ export function ReminderScheduler() {
         !notifiedThisRun.current.has(supplyId) &&
         !isWithinQuietHours();
       if (supplyOk) {
-        const lowNames = Object.entries(settings.medicationSupply!)
-          .filter(([key, held]) => {
-            const perDay = pillsPerDay[key as keyof typeof pillsPerDay] || 1;
-            const daysLeft = perDay > 0 ? Math.floor(held / perDay) : 0;
-            return held > 0 && daysLeft <= 7;
+        const builtInLabels: Record<string, string> = { dex: "Dex", bupropion: "Bupropion" };
+        const builtInNames = (settings.medicationSupply
+          ? Object.entries(settings.medicationSupply)
+              .filter(([key, held]) => {
+                const perDay = pillsPerDay[key as keyof typeof pillsPerDay] || 1;
+                const daysLeft = perDay > 0 ? Math.floor(held / perDay) : 0;
+                return held > 0 && daysLeft <= 7;
+              })
+              .map(([k]) => builtInLabels[k] ?? k)
+          : []) as string[];
+        const customNames = (settings.customMeds ?? [])
+          .filter((med) => {
+            const daysLeft = med.pillsPerDay > 0 ? Math.floor(med.supply / med.pillsPerDay) : 0;
+            return med.supply > 0 && daysLeft <= 7;
           })
-          .map(([k]) => ({ dex1: "Dex #1", dex2: "Dex #2", dex3: "Dex #3", bupropion: "Bupropion" }[k]))
-          .join(", ");
+          .map((m) => m.name);
+        const lowNames = [...builtInNames, ...customNames].join(", ");
         const title = `Low supply: ${lowNames}. Refill soon.`;
         notifiedThisRun.current.add(supplyId);
         setLastNotified(dateKey, supplyId, nowMs).then(() => {});

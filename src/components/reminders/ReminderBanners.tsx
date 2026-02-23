@@ -33,7 +33,7 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
         >
           <p className="font-medium text-amber-900">{r.title}</p>
           <div className="flex flex-wrap gap-2 mt-3">
-            {(r.type === "dex1" || r.type === "dex2" || r.type === "dex3" || r.type === "bupropion" || r.type === "lunch") && (
+            {((r.type as string).startsWith("dex-") || r.type === "bupropion" || r.type === "lunch" || r.type === "custom") && (
               <button
                 type="button"
                 onClick={() => {
