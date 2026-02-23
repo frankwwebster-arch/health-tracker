@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Settings } from "@/types";
 
 const LABELS: Record<string, string> = {
-  dex: "Dex",
+  dex: "Dexamphetamine",
   bupropion: "Bupropion",
 };
 

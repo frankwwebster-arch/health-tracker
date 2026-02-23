@@ -76,8 +76,24 @@ Replace `YOUR_USERNAME` with your GitHub username. If it asks for a password, us
 
 ---
 
+## Optional: Cross-device sync (Supabase)
+
+To sync data across devices (e.g. iPhone and desktop):
+
+1. Create a free project at **https://supabase.com**
+2. In Supabase SQL Editor, run the contents of `supabase/schema.sql`
+3. In Supabase → Authentication → URL Configuration, add your redirect URL: `https://your-app.vercel.app/auth/callback` (and `http://localhost:3000/auth/callback` for local dev)
+4. In Vercel → Project → Settings → Environment Variables, add:
+   - `NEXT_PUBLIC_SUPABASE_URL` (from Supabase project settings)
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (from Supabase API keys)
+5. Redeploy. Sign in via the header to enable sync.
+
+Without Supabase, the app works offline-only (local storage per device).
+
+---
+
 ## Notes
 
-- **Data is stored on each device** (IndexedDB). Your phone and laptop each have their own checklist.
+- **Data is stored on each device** (IndexedDB). Your phone and laptop each have their own checklist. With Supabase, data syncs when signed in.
 - **Free tier** on Vercel is enough for personal use.
 - If you hit any step that doesn’t work, check that Git is installed (`git --version`) and that you’re in the right folder (`/Users/frank/health-tracker`).

@@ -13,6 +13,7 @@ import { DailySummary } from "@/components/today/DailySummary";
 import { ReminderBanners } from "@/components/reminders/ReminderBanners";
 import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
 import { SupplyBanner } from "@/components/reminders/SupplyBanner";
+import { MigrationBanner } from "@/components/MigrationBanner";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
 import { getDateKey } from "@/types";
 
@@ -92,6 +93,7 @@ export default function TodayPage() {
         <ReminderBanners onMarkAsTaken={handleMarkAsTaken} onAddWater={handleAddWater} />
       )}
       <SupplyBanner settings={settings} />
+      <MigrationBanner />
       <main className="max-w-lg mx-auto px-4 pb-24">
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
         <MedicationSection data={data} settings={settings} update={update} />

@@ -94,7 +94,7 @@ export function ReminderScheduler() {
           const atTime = now >= scheduled && now < scheduled + 60;
           await maybeNotify(
             getReminderId(key),
-            `Dex dose ${i + 1} – time to take`,
+            `Dexamphetamine dose ${i + 1} – time to take`,
             key,
             !taken && atTime
           );
@@ -189,7 +189,7 @@ export function ReminderScheduler() {
         !notifiedThisRun.current.has(supplyId) &&
         !isWithinQuietHours();
       if (supplyOk) {
-        const builtInLabels: Record<string, string> = { dex: "Dex", bupropion: "Bupropion" };
+        const builtInLabels: Record<string, string> = { dex: "Dexamphetamine", bupropion: "Bupropion" };
         const builtInNames = (settings.medicationSupply
           ? Object.entries(settings.medicationSupply)
               .filter(([key, held]) => {

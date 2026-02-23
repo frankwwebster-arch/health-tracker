@@ -11,10 +11,12 @@ import {
   setLastNotified as saveLastNotified,
 } from "@/db";
 import { getDateKey } from "@/types";
+import { useSync } from "@/components/SyncContext";
 
 export function useTodayData(dateKey?: string) {
   const [data, setData] = useState<DayData | null>(null);
   const key = dateKey ?? getDateKey();
+  const sync = useSync();
 
   const load = useCallback(async () => {
     const d = await getDayData(key);
@@ -31,8 +33,9 @@ export function useTodayData(dateKey?: string) {
       const next = updater(data);
       setData(next);
       await setDayData(key, next);
+      sync?.markModified(key);
     },
-    [data, key]
+    [data, key, sync]
   );
 
   return { data, update, refresh: load, dateKey: key };

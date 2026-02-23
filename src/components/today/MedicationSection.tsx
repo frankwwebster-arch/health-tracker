@@ -54,7 +54,7 @@ export function MedicationSection({ data, settings, update }: Props) {
             allDexTaken ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
           }`}
         >
-          <p className="font-medium text-gray-800 mb-3">Dex (3x daily)</p>
+          <p className="font-medium text-gray-800 mb-3">Dexamphetamine (3x daily)</p>
           <div className="space-y-2">
             {dexDoses.map((entry, i) => {
               const scheduledTime = dexTimes[i] ?? "—";

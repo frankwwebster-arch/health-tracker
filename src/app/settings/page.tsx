@@ -4,11 +4,24 @@ import { useEffect, useState } from "react";
 import { useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import type { Settings } from "@/types";
-import { resetToday } from "@/db";
+import {
+  resetToday,
+  getAllDayKeys,
+  getDayData,
+  getSettings as getSettingsFromDb,
+  setDayData,
+  setSettings as saveSettingsToDb,
+} from "@/db";
+import { useAuth } from "@/components/AuthProvider";
+import { useSync } from "@/components/SyncContext";
 
 export default function SettingsPage() {
   const { settings, setSettings } = useSettings();
+  const { user } = useAuth();
+  const syncCtx = useSync();
   const [saved, setSaved] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!saved) return;
@@ -54,6 +67,78 @@ export default function SettingsPage() {
       setSaved(true);
     }
   };
+
+  const handleSyncNow = async () => {
+    if (!syncCtx) return;
+    setSyncing(true);
+    setSyncMessage(null);
+    const result = await syncCtx.sync();
+    await syncCtx.refreshLastSync();
+    setSyncing(false);
+    if (result.success) {
+      setSyncMessage(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
+    } else {
+      setSyncMessage(result.error ?? "Sync failed");
+    }
+    setTimeout(() => setSyncMessage(null), 4000);
+  };
+
+  const handleExport = async () => {
+    const keys = await getAllDayKeys();
+    const days: Record<string, unknown> = {};
+    for (const k of keys) {
+      days[k] = await getDayData(k);
+    }
+    const s = await getSettingsFromDb();
+    const blob = new Blob(
+      [JSON.stringify({ days, settings: s, exportedAt: new Date().toISOString() }, null, 2)],
+      { type: "application/json" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `health-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (!confirm("Import will merge/replace data. Continue?")) return;
+      try {
+        const text = await file.text();
+        const { days, settings: importedSettings } = JSON.parse(text) as {
+          days?: Record<string, unknown>;
+          settings?: Settings;
+        };
+        if (days) {
+          for (const [k, v] of Object.entries(days)) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(k) && v && typeof v === "object") {
+              await setDayData(k, v as Parameters<typeof setDayData>[1]);
+            }
+          }
+        }
+        if (importedSettings) {
+          await saveSettingsToDb(importedSettings);
+          setSettings(importedSettings);
+        }
+        setSaved(true);
+      } catch (err) {
+        alert("Import failed: " + (err instanceof Error ? err.message : "Invalid file"));
+      }
+    };
+    input.click();
+  };
+
+  const lastSyncStr =
+    syncCtx?.lastSync != null
+      ? new Date(syncCtx.lastSync).toLocaleString()
+      : "Never";
 
   return (
     <>
@@ -195,7 +280,7 @@ export default function SettingsPage() {
             </label>
             <div className="space-y-3">
               <div>
-                <p className="font-medium text-gray-800 mb-2">Dex (3 doses)</p>
+                <p className="font-medium text-gray-800 mb-2">Dexamphetamine (3 doses)</p>
                 <div className="flex gap-2">
                   {(Array.isArray(settings.medicationTimes.dex) ? settings.medicationTimes.dex : ["07:00", "12:30", "15:30"]).map((t, i) => (
                     <label key={i} className="flex-1">
@@ -249,7 +334,7 @@ export default function SettingsPage() {
             </p>
             {(
               [
-                ["dex", "Dex (3x daily)", 3],
+                ["dex", "Dexamphetamine (3x daily)", 3],
                 ["bupropion", "Bupropion", 1],
               ] as const
             ).map(([key, label, defaultPerDay]) => (
@@ -413,6 +498,108 @@ export default function SettingsPage() {
             >
               + Add medication or supplement
             </button>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Sync
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              {user
+                ? "Sync your data across devices when signed in."
+                : "Sign in to sync across devices."}
+            </p>
+            {user && (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {syncing ? "Syncing…" : "Sync now"}
+                  </button>
+                  <span className="text-sm text-muted">
+                    Last sync: {lastSyncStr}
+                  </span>
+                </div>
+                {syncMessage && (
+                  <p className={`text-sm ${syncMessage.startsWith("Synced") ? "text-accent" : "text-amber-600"}`}>
+                    {syncMessage}
+                  </p>
+                )}
+              </>
+            )}
+            <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Export JSON
+              </button>
+              <button
+                type="button"
+                onClick={handleImport}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Import JSON
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Sync
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              {user
+                ? "Sync your data across devices when signed in."
+                : "Sign in to sync across devices."}
+            </p>
+            {user && (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {syncing ? "Syncing…" : "Sync now"}
+                  </button>
+                  <span className="text-sm text-muted">
+                    Last sync: {lastSyncStr}
+                  </span>
+                </div>
+                {syncMessage && (
+                  <p className={`text-sm ${syncMessage.startsWith("Synced") ? "text-accent" : "text-amber-600"}`}>
+                    {syncMessage}
+                  </p>
+                )}
+              </>
+            )}
+            <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Export JSON
+              </button>
+              <button
+                type="button"
+                onClick={handleImport}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+              >
+                Import JSON
+              </button>
+            </div>
           </div>
         </section>
 

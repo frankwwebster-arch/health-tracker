@@ -9,6 +9,9 @@ import {
 const DAYS_STORE = "health-days";
 const SETTINGS_KEY = "health-settings";
 const LAST_NOTIFIED_KEY = "health-last-notified";
+const SYNC_META_KEY = "health-sync-meta"; // { [dateKey]: updatedAt }
+const LAST_SYNC_KEY = "health-last-sync";
+const MIGRATION_OFFERED_KEY = "health-migration-offered";
 
 const daysStore = createStore("health-tracker-db", DAYS_STORE);
 
@@ -59,6 +62,9 @@ export async function getDayData(dateKey: string): Promise<DayData> {
 
 export async function setDayData(dateKey: string, data: DayData): Promise<void> {
   await set(dateKey, data, daysStore);
+  const meta = (await get<Record<string, number>>(SYNC_META_KEY, daysStore)) ?? {};
+  meta[dateKey] = Date.now();
+  await set(SYNC_META_KEY, meta, daysStore);
 }
 
 function migrateSettings(s: Settings): Settings {
@@ -122,4 +128,32 @@ export async function resetToday(): Promise<void> {
   const todayKey = getDateKey();
   await setDayData(todayKey, createEmptyDayData());
   await del(`${LAST_NOTIFIED_KEY}-${todayKey}`);
+}
+
+export async function getLocalUpdatedAt(dateKey: string): Promise<number | null> {
+  const meta = (await get<Record<string, number>>(SYNC_META_KEY, daysStore)) ?? {};
+  return meta[dateKey] ?? null;
+}
+
+export async function setDayDataFromSync(dateKey: string, data: DayData, updatedAt: number): Promise<void> {
+  await set(dateKey, data, daysStore);
+  const meta = (await get<Record<string, number>>(SYNC_META_KEY, daysStore)) ?? {};
+  meta[dateKey] = updatedAt;
+  await set(SYNC_META_KEY, meta, daysStore);
+}
+
+export async function getLastSyncTime(): Promise<number | null> {
+  return await get<number>(LAST_SYNC_KEY, daysStore) ?? null;
+}
+
+export async function setLastSyncTime(ts: number): Promise<void> {
+  await set(LAST_SYNC_KEY, ts, daysStore);
+}
+
+export async function getMigrationOffered(): Promise<boolean> {
+  return (await get<boolean>(MIGRATION_OFFERED_KEY, daysStore)) ?? false;
+}
+
+export async function setMigrationOffered(): Promise<void> {
+  await set(MIGRATION_OFFERED_KEY, true, daysStore);
 }
