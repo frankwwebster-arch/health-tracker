@@ -2,6 +2,7 @@
 
 import type { DayData, Settings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/types";
+import { DoneWithUndoAction } from "./DoneWithUndoAction";
 
 function formatTime(ms: number): string {
   const d = new Date(ms);
@@ -77,9 +78,8 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               </p>
             </div>
             {(data.smoothieEaten ?? false) ? (
-              <button
-                type="button"
-                onClick={() =>
+              <DoneWithUndoAction
+                onUndo={() =>
                   update((prev) => ({
                     ...prev,
                     smoothieEaten: false,
@@ -87,10 +87,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     smoothieNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
-              >
-                Undo
-              </button>
+              />
             ) : (
               <button
                 type="button"
@@ -131,9 +128,8 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               </p>
             </div>
             {data.lunchEaten ? (
-              <button
-                type="button"
-                onClick={() =>
+              <DoneWithUndoAction
+                onUndo={() =>
                   update((prev) => ({
                     ...prev,
                     lunchEaten: false,
@@ -141,10 +137,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     lunchNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
-              >
-                Undo
-              </button>
+              />
             ) : (
               <button
                 type="button"
@@ -190,19 +183,15 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               <p className="text-sm text-muted">Suppresses food nudges</p>
             </div>
             {(data.snackEaten ?? false) ? (
-              <button
-                type="button"
-                onClick={() =>
+              <DoneWithUndoAction
+                onUndo={() =>
                   update((prev) => ({
                     ...prev,
                     snackEaten: false,
                     snackNote: "",
                   }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
-              >
-                Undo
-              </button>
+              />
             ) : (
               <button
                 type="button"
