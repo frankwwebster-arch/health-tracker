@@ -172,9 +172,7 @@ export default function TodayPage() {
           setPelotonSyncStatus("Unable to sync from Peloton right now.");
         }
       } finally {
-        if (!signal?.aborted) {
-          setPelotonSyncing(false);
-        }
+        setPelotonSyncing(false);
       }
     },
     [pelotonSyncing, selectedDateKey, update]
