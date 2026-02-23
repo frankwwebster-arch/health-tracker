@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"components/MigrationBanner.tsx -> @/lib/sync\":{\"id\":\"components/MigrationBanner.tsx -> @/lib/sync\",\"files\":[]}}"

@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useTodayData, useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { DateSelector } from "@/components/today/DateSelector";
+import { MorningSection } from "@/components/today/MorningSection";
 import { MedicationSection } from "@/components/today/MedicationSection";
 import { FoodWaterSection } from "@/components/today/FoodWaterSection";
 import { MovementSection } from "@/components/today/MovementSection";
 import { WeightSection } from "@/components/today/WeightSection";
-import { SleepMoodSection } from "@/components/today/SleepMoodSection";
+import { EveningSection } from "@/components/today/EveningSection";
 import { DailySummary } from "@/components/today/DailySummary";
 import { ReminderBanners } from "@/components/reminders/ReminderBanners";
 import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
@@ -96,11 +97,12 @@ export default function TodayPage() {
       <MigrationBanner />
       <main className="max-w-lg mx-auto px-4 pb-24">
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
+        <MorningSection data={data} update={update} />
         <MedicationSection data={data} settings={settings} update={update} />
         <FoodWaterSection data={data} update={update} settings={settings} />
         <MovementSection data={data} update={update} />
         <WeightSection data={data} update={update} />
-        <SleepMoodSection data={data} update={update} />
+        <EveningSection data={data} update={update} />
         <DailySummary
           data={data}
           waterGoal={settings?.waterGoalMl ?? 2000}
