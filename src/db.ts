@@ -56,6 +56,11 @@ function migrateDayData(data: DayData): DayData {
     result = { ...result, lunchFoods: [] } as DayData;
   }
 
+  // Ensure snackFoods exists for old data
+  if (!Array.isArray((result as unknown as Record<string, unknown>).snackFoods)) {
+    result = { ...result, snackFoods: [] } as DayData;
+  }
+
   return result;
 }
 

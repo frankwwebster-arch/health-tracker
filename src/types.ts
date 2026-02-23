@@ -41,6 +41,7 @@ export interface DayData {
   smoothieFoods: string[];
   snackEaten: boolean;
   snackNote: string;
+  snackFoods: string[];
   waterMl: number;
   waterLog: WaterLogEntry[];
   workoutMinutes: number | null; // total minutes (from presets or Peloton sessions)
@@ -140,6 +141,7 @@ export function createEmptyDayData(): DayData {
     smoothieFoods: [],
     snackEaten: false,
     snackNote: "",
+    snackFoods: [],
     waterMl: 0,
     waterLog: [],
     workoutMinutes: null,

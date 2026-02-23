@@ -24,6 +24,7 @@ export function useTodayData(dateKey?: string) {
   }, [key]);
 
   useEffect(() => {
+    setData(null);
     load();
   }, [load]);
 
