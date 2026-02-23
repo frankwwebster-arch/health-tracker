@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #f8f7f4;
+  --muted: #6b7280;
+  --accent: #4a7c59;
+  --border: #e5e2dc;
+}
+
+body {
+  background: var(--surface);
+  color: #374151;
+  min-height: 100vh;
+}
+
+/* Large tap targets, calm focus */
+button:focus-visible,
+a:focus-visible {
+  @apply outline-2 outline-offset-2 outline-accent;
+}

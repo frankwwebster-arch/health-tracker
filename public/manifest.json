@@ -1,0 +1,9 @@
+{
+  "name": "Health Tracker",
+  "short_name": "Health",
+  "description": "Personal daily health tick-box tracker",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#f8f7f4",
+  "theme_color": "#4a7c59"
+}

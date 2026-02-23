@@ -1,0 +1,65 @@
+"use client";
+
+import { useTodayData, useSettings } from "@/hooks/useTodayData";
+import { LayoutHeader } from "@/components/LayoutHeader";
+import { MedicationSection } from "@/components/today/MedicationSection";
+import { FoodWaterSection } from "@/components/today/FoodWaterSection";
+import { MovementSection } from "@/components/today/MovementSection";
+import { DailySummary } from "@/components/today/DailySummary";
+import { ReminderBanners } from "@/components/reminders/ReminderBanners";
+import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
+import type { ReminderType } from "@/components/reminders/ReminderContext";
+
+export default function TodayPage() {
+  const { data, update } = useTodayData();
+  const { settings } = useSettings();
+
+  const handleMarkAsTaken = (type: ReminderType, _id: string) => {
+    if (type === "lunch") {
+      update((prev) => ({ ...prev, lunchEaten: true, lunchAt: Date.now() }));
+      return;
+    }
+    if (type === "dex1" || type === "dex2" || type === "dex3" || type === "bupropion") {
+      update((prev) => ({
+        ...prev,
+        medication: {
+          ...prev.medication,
+          [type]: { taken: true, takenAt: Date.now() },
+        },
+      }));
+    }
+  };
+
+  const handleAddWater = () => {
+    update((prev) => ({
+      ...prev,
+      waterMl: prev.waterMl + 250,
+      waterLog: [...prev.waterLog, { amount: 250, timestamp: Date.now() }],
+    }));
+  };
+
+  if (!data) {
+    return (
+      <>
+        <LayoutHeader title="Today" />
+        <main className="max-w-lg mx-auto px-4 py-6">
+          <p className="text-muted">Loading…</p>
+        </main>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ReminderScheduler />
+      <LayoutHeader title="Today" />
+      <ReminderBanners onMarkAsTaken={handleMarkAsTaken} onAddWater={handleAddWater} />
+      <main className="max-w-lg mx-auto px-4 pb-24">
+        <MedicationSection data={data} settings={settings} update={update} />
+        <FoodWaterSection data={data} update={update} settings={settings} />
+        <MovementSection data={data} update={update} />
+        <DailySummary data={data} waterGoal={settings?.waterGoalMl ?? 2000} />
+      </main>
+    </>
+  );
+}
