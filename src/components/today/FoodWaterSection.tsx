@@ -88,7 +88,7 @@ function extractIngredientsFromSmoothieText(note: string): string[] {
     if (normalized) ingredients.add(normalized);
   }
 
-  return [...ingredients];
+  return Array.from(ingredients);
 }
 
 function collectFoodsForDay(day: Pick<DayData, "smoothieNote" | "smoothieFoods">): string[] {
@@ -96,7 +96,7 @@ function collectFoodsForDay(day: Pick<DayData, "smoothieNote" | "smoothieFoods">
   const fromCheckboxes = (day.smoothieFoods ?? [])
     .map((food) => normalizeIngredientLabel(food))
     .filter((food): food is string => Boolean(food));
-  return [...new Set([...fromNote, ...fromCheckboxes])];
+  return Array.from(new Set([...fromNote, ...fromCheckboxes]));
 }
 
 function formatIngredientLabel(food: string): string {
@@ -205,7 +205,7 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
       }
     }
 
-    const repeatedFoods = [...counts.entries()]
+    const repeatedFoods = Array.from(counts.entries())
       .filter(([, count]) => count >= MIN_REPEATED_SMOOTHIE_FOOD_COUNT)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([food]) => food);
