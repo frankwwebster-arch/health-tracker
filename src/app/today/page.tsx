@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTodayData, useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { DateSelector } from "@/components/today/DateSelector";
@@ -23,6 +23,47 @@ export default function TodayPage() {
   const { data, update } = useTodayData(selectedDateKey);
   const { settings } = useSettings();
   const isToday = selectedDateKey === getDateKey();
+  const pelotonAttemptedDates = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!data || data.workoutMinutes != null) return;
+    if (pelotonAttemptedDates.current.has(selectedDateKey)) return;
+    pelotonAttemptedDates.current.add(selectedDateKey);
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+    const controller = new AbortController();
+
+    const hydrateWorkoutFromPeloton = async () => {
+      try {
+        const query = new URLSearchParams({
+          date: selectedDateKey,
+          timeZone,
+        });
+        const response = await fetch(`/api/peloton/workout?${query.toString()}`, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as { workoutMinutes?: number | null };
+        if (typeof payload.workoutMinutes !== "number" || payload.workoutMinutes <= 0) {
+          return;
+        }
+
+        await update((prev) =>
+          prev.workoutMinutes == null
+            ? { ...prev, workoutMinutes: payload.workoutMinutes }
+            : prev
+        );
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+      }
+    };
+
+    void hydrateWorkoutFromPeloton();
+    return () => controller.abort();
+  }, [data, selectedDateKey, update]);
 
   const handleMarkAsTaken = (type: ReminderType, id: string) => {
     if (type === "lunch") {
