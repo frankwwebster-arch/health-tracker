@@ -35,39 +35,42 @@ interface PelotonWorkoutResponse {
 }
 
 function toPelotonSessions(workouts: PelotonWorkoutPayload[]): WorkoutSession[] {
-  return workouts
-    .map((workout, index) => {
-      const durationMinutes =
-        typeof workout.durationMinutes === "number" && workout.durationMinutes > 0
-          ? Math.round(workout.durationMinutes)
-          : null;
-      if (!durationMinutes) return null;
+  const sessions: WorkoutSession[] = [];
 
-      const label =
-        typeof workout.label === "string" && workout.label.trim() !== ""
-          ? workout.label.trim()
-          : "Peloton workout";
-      const rawId =
-        typeof workout.id === "string" && workout.id.trim() !== ""
-          ? workout.id
-          : `peloton-${workout.startTime ?? "unknown"}-${index}`;
+  for (let index = 0; index < workouts.length; index++) {
+    const workout = workouts[index];
+    const durationMinutes =
+      typeof workout.durationMinutes === "number" && workout.durationMinutes > 0
+        ? Math.round(workout.durationMinutes)
+        : null;
+    if (!durationMinutes) continue;
 
-      return {
-        id: rawId,
-        source: "peloton" as const,
-        label,
-        durationMinutes,
-        discipline:
-          typeof workout.discipline === "string" && workout.discipline.trim() !== ""
-            ? workout.discipline
-            : null,
-        startTime:
-          typeof workout.startTime === "number" && Number.isFinite(workout.startTime)
-            ? workout.startTime
-            : null,
-      };
-    })
-    .filter((session): session is WorkoutSession => Boolean(session));
+    const label =
+      typeof workout.label === "string" && workout.label.trim() !== ""
+        ? workout.label.trim()
+        : "Peloton workout";
+    const rawId =
+      typeof workout.id === "string" && workout.id.trim() !== ""
+        ? workout.id
+        : `peloton-${workout.startTime ?? "unknown"}-${index}`;
+
+    sessions.push({
+      id: rawId,
+      source: "peloton",
+      label,
+      durationMinutes,
+      discipline:
+        typeof workout.discipline === "string" && workout.discipline.trim() !== ""
+          ? workout.discipline
+          : null,
+      startTime:
+        typeof workout.startTime === "number" && Number.isFinite(workout.startTime)
+          ? workout.startTime
+          : null,
+    });
+  }
+
+  return sessions;
 }
 
 export default function TodayPage() {
