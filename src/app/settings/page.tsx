@@ -63,11 +63,11 @@ export default function SettingsPage() {
           <p className="text-sm text-accent py-2">Settings saved.</p>
         )}
 
-        <section className="mb-8">
-          <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
             Reminders
           </h2>
-          <div className="space-y-3 rounded-xl border border-border bg-white p-4 shadow-sm">
+          <div className="space-y-3 rounded-2xl border border-border bg-white p-4 shadow-card">
             <label className="flex items-center justify-between gap-4 min-h-[44px]">
               <span className="font-medium text-gray-800">Enable reminders</span>
               <input
@@ -80,7 +80,7 @@ export default function SettingsPage() {
                     await Notification.requestPermission();
                   }
                 }}
-                className="w-5 h-5 rounded border-gray-300 text-accent"
+                className="w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent/30"
               />
             </label>
             <label className="flex items-center justify-between gap-4 min-h-[44px]">
@@ -89,14 +89,14 @@ export default function SettingsPage() {
                 type="checkbox"
                 checked={settings.weekdayOnly}
                 onChange={(e) => update({ weekdayOnly: e.target.checked })}
-                className="w-5 h-5 rounded border-gray-300 text-accent"
+                className="w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent/30"
               />
             </label>
             <div className="pt-2">
               <button
                 type="button"
                 onClick={testNotification}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
               >
                 Test notification
               </button>
@@ -120,7 +120,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   update({ waterGoalMl: parseInt(e.target.value, 10) || 2000 })
                 }
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
               />
             </label>
             <label className="block">
@@ -132,7 +132,7 @@ export default function SettingsPage() {
                     waterIntervalMinutes: parseInt(e.target.value, 10),
                   })
                 }
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
               >
                 <option value={90}>90</option>
                 <option value={120}>120</option>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
                 type="time"
                 value={settings.waterStartTime}
                 onChange={(e) => update({ waterStartTime: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
               />
             </label>
             <label className="block">
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 type="time"
                 value={settings.waterEndTime}
                 onChange={(e) => update({ waterEndTime: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
               />
             </label>
           </div>
@@ -171,17 +171,17 @@ export default function SettingsPage() {
                 type="time"
                 value={settings.lunchReminderTime}
                 onChange={(e) => update({ lunchReminderTime: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
               />
             </label>
           </div>
         </section>
 
-        <section className="mb-8">
-          <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
             Medication reminders
           </h2>
-          <div className="space-y-3 rounded-xl border border-border bg-white p-4 shadow-sm">
+          <div className="space-y-3 rounded-2xl border border-border bg-white p-4 shadow-card">
             <label className="flex items-center justify-between gap-4 min-h-[44px]">
               <span className="font-medium text-gray-800">Enable medication reminders</span>
               <input
@@ -190,7 +190,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   update({ medicationRemindersEnabled: e.target.checked })
                 }
-                className="w-5 h-5 rounded border-gray-300 text-accent"
+                className="w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent/30"
               />
             </label>
             {(
@@ -214,7 +214,7 @@ export default function SettingsPage() {
                       },
                     })
                   }
-                  className="mt-1 block w-full rounded-lg border border-border px-3 py-2.5 text-gray-800"
+                  className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
                 />
               </label>
             ))}

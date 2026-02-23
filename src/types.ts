@@ -100,3 +100,25 @@ export function getDateKey(d: Date = new Date()): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+export function dateKeyToDate(dateKey: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function getAdjacentDateKey(dateKey: string, delta: number): string {
+  const d = dateKeyToDate(dateKey);
+  d.setDate(d.getDate() + delta);
+  return getDateKey(d);
+}
+
+export function formatDateLabel(dateKey: string): string {
+  const d = dateKeyToDate(dateKey);
+  const today = getDateKey();
+  if (dateKey === today) return "Today";
+  const yesterday = getAdjacentDateKey(today, -1);
+  if (dateKey === yesterday) return "Yesterday";
+  const tomorrow = getAdjacentDateKey(today, 1);
+  if (dateKey === tomorrow) return "Tomorrow";
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}

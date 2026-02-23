@@ -43,11 +43,11 @@ export function MedicationSection({ data, settings, update }: Props) {
   const [editingKey, setEditingKey] = useState<MedicationKey | null>(null);
 
   return (
-    <section className="mb-8">
-      <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
+    <section className="mb-10">
+      <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
         Medication
       </h2>
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {ORDER.map((key) => {
           const entry = data.medication[key];
           const scheduledTime = times[key];
@@ -59,7 +59,9 @@ export function MedicationSection({ data, settings, update }: Props) {
           return (
             <li
               key={key}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-white p-4 shadow-sm"
+              className={`flex flex-wrap items-center gap-2 rounded-2xl border p-4 shadow-card transition-shadow hover:shadow-card-hover ${
+                entry.taken ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+              }`}
             >
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800">
@@ -85,7 +87,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         }));
                       }}
                       onBlur={() => setEditingKey(null)}
-                      className="rounded-lg border border-border px-2 py-1.5 text-sm"
+                      className="rounded-xl border border-border px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
                     />
                     <button
                       type="button"
@@ -123,7 +125,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         },
                       }))
                     }
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
                   >
                     Undo
                   </button>
@@ -139,7 +141,7 @@ export function MedicationSection({ data, settings, update }: Props) {
                         },
                       }))
                     }
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90 min-h-[44px]"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
                   >
                     Mark as taken
                   </button>

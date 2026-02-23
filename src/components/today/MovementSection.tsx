@@ -11,12 +11,12 @@ interface Props {
 
 export function MovementSection({ data, update }: Props) {
   return (
-    <section className="mb-8">
-      <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
+    <section className="mb-10">
+      <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
         Movement
       </h2>
-      <div className="space-y-2">
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm flex items-center justify-between gap-2">
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow flex items-center justify-between gap-2">
           <div>
             <p className="font-medium text-gray-800">Workout done</p>
             <p className="text-sm text-muted">
@@ -29,7 +29,7 @@ export function MovementSection({ data, update }: Props) {
               onClick={() =>
                 update((prev) => ({ ...prev, workoutDone: false }))
               }
-              className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
             >
               Undo
             </button>
@@ -39,13 +39,13 @@ export function MovementSection({ data, update }: Props) {
               onClick={() =>
                 update((prev) => ({ ...prev, workoutDone: true }))
               }
-              className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
             >
               Mark done
             </button>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Walk / steps done</p>
@@ -59,22 +59,22 @@ export function MovementSection({ data, update }: Props) {
                 onClick={() =>
                   update((prev) => ({ ...prev, walkDone: false }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                Undo
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  update((prev) => ({ ...prev, walkDone: true }))
-                }
-                className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90"
-              >
-                Mark done
-              </button>
-            )}
-          </div>
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
+            >
+              Undo
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                update((prev) => ({ ...prev, walkDone: true }))
+              }
+              className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
+            >
+              Mark done
+            </button>
+          )}
+        </div>
           <div className="mt-2 flex items-center gap-2">
             <label htmlFor="steps" className="text-sm text-muted shrink-0">
               Steps:
@@ -92,7 +92,7 @@ export function MovementSection({ data, update }: Props) {
                   stepsCount: v === "" ? null : parseInt(v, 10) || null,
                 }));
               }}
-              className="w-24 rounded-lg border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted"
+              className="w-24 rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
             />
           </div>
         </div>

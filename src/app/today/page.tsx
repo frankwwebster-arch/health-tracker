@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useTodayData, useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { DateSelector } from "@/components/today/DateSelector";
 import { MedicationSection } from "@/components/today/MedicationSection";
 import { FoodWaterSection } from "@/components/today/FoodWaterSection";
 import { MovementSection } from "@/components/today/MovementSection";
@@ -9,10 +11,13 @@ import { DailySummary } from "@/components/today/DailySummary";
 import { ReminderBanners } from "@/components/reminders/ReminderBanners";
 import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
+import { getDateKey } from "@/types";
 
 export default function TodayPage() {
-  const { data, update } = useTodayData();
+  const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
+  const { data, update } = useTodayData(selectedDateKey);
   const { settings } = useSettings();
+  const isToday = selectedDateKey === getDateKey();
 
   const handleMarkAsTaken = (type: ReminderType, _id: string) => {
     if (type === "lunch") {
@@ -51,10 +56,13 @@ export default function TodayPage() {
 
   return (
     <>
-      <ReminderScheduler />
+      {isToday && <ReminderScheduler />}
       <LayoutHeader title="Today" />
-      <ReminderBanners onMarkAsTaken={handleMarkAsTaken} onAddWater={handleAddWater} />
+      {isToday && (
+        <ReminderBanners onMarkAsTaken={handleMarkAsTaken} onAddWater={handleAddWater} />
+      )}
       <main className="max-w-lg mx-auto px-4 pb-24">
+        <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
         <MedicationSection data={data} settings={settings} update={update} />
         <FoodWaterSection data={data} update={update} settings={settings} />
         <MovementSection data={data} update={update} />

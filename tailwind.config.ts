@@ -8,11 +8,19 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
+      },
       colors: {
-        surface: "#f8f7f4",
+        surface: "#f5f3ef",
         muted: "#6b7280",
-        accent: "#4a7c59",
-        border: "#e5e2dc",
+        accent: "#3d7c47",
+        "accent-soft": "#e8f0e9",
+        border: "#e8e6e1",
+      },
+      boxShadow: {
+        card: "0 1px 3px rgba(0,0,0,0.04)",
+        "card-hover": "0 4px 12px rgba(0,0,0,0.06)",
       },
     },
   },

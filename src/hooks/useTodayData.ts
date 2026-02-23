@@ -12,14 +12,14 @@ import {
 } from "@/db";
 import { getDateKey } from "@/types";
 
-export function useTodayData() {
+export function useTodayData(dateKey?: string) {
   const [data, setData] = useState<DayData | null>(null);
-  const dateKey = getDateKey();
+  const key = dateKey ?? getDateKey();
 
   const load = useCallback(async () => {
-    const d = await getDayData(dateKey);
+    const d = await getDayData(key);
     setData(d);
-  }, [dateKey]);
+  }, [key]);
 
   useEffect(() => {
     load();
@@ -30,12 +30,12 @@ export function useTodayData() {
       if (!data) return;
       const next = updater(data);
       setData(next);
-      await setDayData(dateKey, next);
+      await setDayData(key, next);
     },
-    [data, dateKey]
+    [data, key]
   );
 
-  return { data, update, refresh: load };
+  return { data, update, refresh: load, dateKey: key };
 }
 
 export function useSettings() {

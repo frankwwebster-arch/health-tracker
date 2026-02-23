@@ -29,7 +29,7 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
       {toShow.map((r) => (
         <div
           key={r.id}
-          className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm"
+          className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-card"
         >
           <p className="font-medium text-amber-900">{r.title}</p>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -40,7 +40,7 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
                   onMarkAsTaken(r.type, r.id);
                   removeReminder(r.id);
                 }}
-                className="px-3 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90 min-h-[44px]"
+                className="px-3 py-2 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
               >
                 Mark as taken
               </button>
@@ -54,7 +54,7 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
                       onAddWater();
                       removeReminder(r.id);
                     }}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90 min-h-[44px]"
+                    className="px-3 py-2 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
                   >
                     +250 ml
                   </button>
@@ -62,7 +62,7 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
                 <button
                   type="button"
                   onClick={() => removeReminder(r.id)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 min-h-[44px]"
+                  className="px-3 py-2 rounded-xl text-sm font-medium bg-white/80 text-gray-700 hover:bg-white border border-amber-200 min-h-[44px]"
                 >
                   Dismiss
                 </button>
@@ -71,14 +71,14 @@ export function ReminderBanners({ onMarkAsTaken, onAddWater }: ReminderBannersPr
             <button
               type="button"
               onClick={() => snoozeReminder(r.id, 30)}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 min-h-[44px]"
+              className="px-3 py-2 rounded-xl text-sm font-medium bg-white/80 text-gray-700 hover:bg-white border border-amber-200 min-h-[44px]"
             >
               Snooze 30 min
             </button>
             <button
               type="button"
               onClick={() => snoozeReminder(r.id, 60)}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 min-h-[44px]"
+              className="px-3 py-2 rounded-xl text-sm font-medium bg-white/80 text-gray-700 hover:bg-white border border-amber-200 min-h-[44px]"
             >
               Snooze 60 min
             </button>

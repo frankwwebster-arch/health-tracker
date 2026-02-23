@@ -28,8 +28,8 @@ export function DailySummary({ data, waterGoal = 2000 }: Props) {
   const completed = countCompleted(data, waterGoal);
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm">
-      <p className="text-gray-700">
+    <section className="rounded-2xl border border-accent/20 bg-accent-soft/50 p-5 shadow-card">
+      <p className="text-gray-800 font-medium">
         Today: {completed} / {TOTAL_ITEMS} completed
       </p>
       <p className="text-sm text-muted mt-1">You’re doing fine.</p>

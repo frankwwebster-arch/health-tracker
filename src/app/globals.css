@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --surface: #f8f7f4;
+  --surface: #f5f3ef;
   --muted: #6b7280;
-  --accent: #4a7c59;
-  --border: #e5e2dc;
+  --accent: #3d7c47;
+  --border: #e8e6e1;
 }
 
 body {
@@ -19,4 +19,9 @@ body {
 button:focus-visible,
 a:focus-visible {
   @apply outline-2 outline-offset-2 outline-accent;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input {
+  @apply transition-colors duration-150;
 }

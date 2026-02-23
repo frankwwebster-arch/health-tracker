@@ -14,7 +14,8 @@ const daysStore = createStore("health-tracker-db", DAYS_STORE);
 
 export async function getDayData(dateKey: string): Promise<DayData> {
   const data = await get<DayData>(dateKey, daysStore);
-  return data ?? createEmptyDayData();
+  if (!data) return createEmptyDayData();
+  return { ...createEmptyDayData(), ...data } as DayData;
 }
 
 export async function setDayData(dateKey: string, data: DayData): Promise<void> {

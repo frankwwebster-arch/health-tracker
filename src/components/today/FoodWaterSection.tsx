@@ -21,13 +21,13 @@ export function FoodWaterSection({ data, settings, update }: Props) {
   const pct = goal > 0 ? Math.min(100, (data.waterMl / goal) * 100) : 0;
 
   return (
-    <section className="mb-8">
-      <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
+    <section className="mb-10">
+      <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
         Food & water
       </h2>
 
       <div className="space-y-3">
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Smoothie</p>
@@ -48,7 +48,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     smoothieNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
               >
                 Undo
               </button>
@@ -62,7 +62,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     smoothieAt: Date.now(),
                   }))
                 }
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
               >
                 Mark eaten
               </button>
@@ -76,12 +76,12 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               onChange={(e) =>
                 update((prev) => ({ ...prev, smoothieNote: e.target.value }))
               }
-              className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted"
+              className="mt-2 w-full rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
             />
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Lunch eaten</p>
@@ -102,7 +102,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     lunchNote: "",
                   }))
                 }
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
               >
                 Undo
               </button>
@@ -116,7 +116,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     lunchAt: Date.now(),
                   }))
                 }
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 min-h-[44px] shadow-sm"
               >
                 Mark eaten
               </button>
@@ -130,12 +130,12 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               onChange={(e) =>
                 update((prev) => ({ ...prev, lunchNote: e.target.value }))
               }
-              className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted"
+              className="mt-2 w-full rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
             />
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="font-medium text-gray-800">Afternoon snack eaten</p>
@@ -151,7 +151,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                     snackNote: "",
                   }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border"
               >
                 Undo
               </button>
@@ -161,7 +161,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                 onClick={() =>
                   update((prev) => ({ ...prev, snackEaten: true }))
                 }
-                className="min-h-[44px] px-4 py-2.5 rounded-lg text-sm font-medium bg-accent text-white hover:opacity-90"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 shadow-sm"
               >
                 Mark eaten
               </button>
@@ -175,17 +175,17 @@ export function FoodWaterSection({ data, settings, update }: Props) {
               onChange={(e) =>
                 update((prev) => ({ ...prev, snackNote: e.target.value }))
               }
-              className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted"
+              className="mt-2 w-full rounded-xl border border-border px-3 py-2 text-sm text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
             />
           )}
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-border bg-white p-4 shadow-sm">
+      <div className="mt-4 rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-card-hover transition-shadow">
         <p className="font-medium text-gray-800 mb-2">Water</p>
-        <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-4">
+        <div className="h-3 rounded-full bg-gray-100/80 overflow-hidden mb-4">
           <div
-            className="h-full bg-accent rounded-full transition-all duration-300"
+            className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -205,7 +205,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                 ],
               }))
             }
-            className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+            className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
           >
             +250 ml
           </button>
@@ -221,7 +221,7 @@ export function FoodWaterSection({ data, settings, update }: Props) {
                 ],
               }))
             }
-            className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 min-h-[44px]"
+            className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white/80 text-gray-600 hover:bg-white border border-border min-h-[44px]"
           >
             +500 ml
           </button>
