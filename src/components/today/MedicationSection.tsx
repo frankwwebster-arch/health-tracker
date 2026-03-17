@@ -177,11 +177,52 @@ export function MedicationSection({ data, settings, update }: Props) {
             <p className="font-medium text-gray-800">
               Bupropion ({times.bupropion})
             </p>
-            <p className="text-sm text-muted">
-              {data.medication.bupropion.taken
-                ? `Taken at ${data.medication.bupropion.takenAt ? formatTime(data.medication.bupropion.takenAt) : "—"}`
-                : "Not yet"}
-            </p>
+            {data.medication.bupropion.taken && editingBupropion ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="time"
+                  defaultValue={
+                    data.medication.bupropion.takenAt
+                      ? timestampToTimeInput(data.medication.bupropion.takenAt)
+                      : timestampToTimeInput(Date.now())
+                  }
+                  onChange={(e) => {
+                    const ts = timeInputToTimestamp(e.target.value);
+                    update((prev) => ({
+                      ...prev,
+                      medication: {
+                        ...prev.medication,
+                        bupropion: { taken: true, takenAt: ts },
+                      },
+                    }));
+                  }}
+                  onBlur={() => setEditingBupropion(false)}
+                  className="rounded-xl border border-border px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditingBupropion(false)}
+                  className="text-sm text-muted hover:text-gray-800"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">
+                {data.medication.bupropion.taken
+                  ? `Taken at ${data.medication.bupropion.takenAt ? formatTime(data.medication.bupropion.takenAt) : "—"}`
+                  : "Not yet"}
+                {data.medication.bupropion.taken && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingBupropion(true)}
+                    className="ml-2 text-accent hover:underline"
+                  >
+                    Edit time
+                  </button>
+                )}
+              </p>
+            )}
           </div>
           {data.medication.bupropion.taken ? (
             <DoneWithUndoAction

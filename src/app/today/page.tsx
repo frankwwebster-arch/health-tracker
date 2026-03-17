@@ -15,6 +15,7 @@ import { ReminderBanners } from "@/components/reminders/ReminderBanners";
 import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
 import { SupplyBanner } from "@/components/reminders/SupplyBanner";
 import { MigrationBanner } from "@/components/MigrationBanner";
+import { StreakBanner } from "@/components/today/StreakBanner";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
 import { getDateKey } from "@/types";
 
@@ -119,6 +120,7 @@ export default function TodayPage() {
       )}
       <SupplyBanner settings={settings} />
       <MigrationBanner />
+      <StreakBanner />
       <main className="max-w-lg mx-auto px-4 pt-6 pb-24">
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
         <MorningSection data={data} update={update} />
