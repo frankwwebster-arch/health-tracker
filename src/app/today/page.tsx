@@ -21,17 +21,19 @@ import { getDateKey } from "@/types";
 import { useSync } from "@/components/SyncContext";
 
 export default function TodayPage() {
-const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
-const { data, update, refresh } = useTodayData(selectedDateKey);
-const { settings } = useSettings();
-const isToday = selectedDateKey === getDateKey();
-const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
-const sync = useSync();
+  const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { data, update, refresh } = useTodayData(selectedDateKey);
+  const { settings } = useSettings();
+  const isToday = selectedDateKey === getDateKey();
+  const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
+  const sync = useSync();
 
-useEffect(() => {
-  if (!sync) return;
-  sync.sync().then(() => refresh());
-}, [selectedDateKey]);
+  useEffect(() => {
+    if (!sync) return;
+    setIsSyncing(true);
+    sync.sync().then(() => refresh()).finally(() => setIsSyncing(false));
+  }, [selectedDateKey]);
 
   useEffect(() => {
     if (!data) return;
@@ -107,12 +109,18 @@ useEffect(() => {
     }));
   };
 
-  if (!data) {
+  if (!data || isSyncing) {
     return (
       <>
         <LayoutHeader title="Today" />
         <main className="max-w-lg mx-auto px-4 py-6">
-          <p className="text-muted">Loading…</p>
+          <div className="flex items-center gap-2 text-muted">
+            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <p>Syncing…</p>
+          </div>
         </main>
       </>
     );
