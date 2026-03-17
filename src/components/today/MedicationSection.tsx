@@ -35,6 +35,7 @@ export function MedicationSection({ data, settings, update }: Props) {
   const dexTimes = Array.isArray(times.dex) ? times.dex : ["07:00", "12:30", "15:30"];
   const customMeds = settings?.customMeds ?? [];
   const [editingDose, setEditingDose] = useState<number | string | null>(null);
+  const [editingBupropion, setEditingBupropion] = useState(false);
 
   const dexDoses = data.medication.dex?.doses ?? [
     { taken: false, takenAt: null },
