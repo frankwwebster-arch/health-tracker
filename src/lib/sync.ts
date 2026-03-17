@@ -8,9 +8,9 @@ import {
   setLastSyncTime,
   getLastSyncTime,
 } from "@/db";
-import { getDateKey, getAdjacentDateKey, createEmptyDayData } from "@/types";
+import { getDateKey, getAdjacentDateKey } from "@/types";
 
-const SYNC_DAYS = 60; // Sync last N days
+const SYNC_DAYS = 60;
 
 export interface SyncResult {
   success: boolean;
@@ -92,18 +92,70 @@ export async function pullRange(days: number = SYNC_DAYS): Promise<{ date: strin
   }));
 }
 
-/** Resolve conflict: keep newer. If local has no updated_at, treat cloud newer unless local modified this session. */
 function shouldUseCloud(
   localUpdatedAt: number | null,
   cloudUpdatedAt: string,
   localModifiedThisSession: boolean
 ): boolean {
   const cloudTs = new Date(cloudUpdatedAt).getTime();
-  if (localModifiedThisSession && !localUpdatedAt) return false; // Prefer local
-  if (!localUpdatedAt) return true; // No local timestamp, use cloud
+  if (localModifiedThisSession && !localUpdatedAt) return false;
+  if (!localUpdatedAt) return true;
   return cloudTs > localUpdatedAt;
 }
 
+/** Sync a single specific day — fast, used on date navigation */
+export async function syncDay(
+  dateKey: string,
+  modifiedThisSession: Set<string> = new Set()
+): Promise<SyncResult> {
+  const supabase = createClient();
+  if (!supabase) return { success: false, pushed: 0, pulled: 0, error: "Sync not configured" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, pushed: 0, pulled: 0, error: "Not signed in" };
+
+  let pushed = 0;
+  let pulled = 0;
+
+  try {
+    // Push local if newer
+    const localData = await getDayData(dateKey);
+    const localUpdatedAt = await getLocalUpdatedAt(dateKey);
+
+    const cloudRow = await supabase
+      .from("tracker_days")
+      .select("data, updated_at")
+      .eq("user_id", user.id)
+      .eq("date", dateKey)
+      .maybeSingle();
+
+    const cloudUpdatedAt = cloudRow.data?.updated_at as string | undefined;
+
+    if (!isEmptyDay(localData)) {
+      const useLocal = !cloudUpdatedAt || !shouldUseCloud(localUpdatedAt, cloudUpdatedAt, modifiedThisSession.has(dateKey));
+      if (useLocal) {
+        const ok = await pushDay(dateKey, localData);
+        if (ok) pushed++;
+      }
+    }
+
+    // Pull cloud if newer
+    if (cloudUpdatedAt && cloudRow.data?.data) {
+      const useCloud = shouldUseCloud(localUpdatedAt, cloudUpdatedAt, modifiedThisSession.has(dateKey));
+      const cloudData = cloudRow.data.data as DayData;
+      if (useCloud && !isEmptyDay(cloudData)) {
+        await setDayDataFromSync(dateKey, cloudData, new Date(cloudUpdatedAt).getTime());
+        pulled++;
+      }
+    }
+
+    return { success: true, pushed, pulled };
+  } catch (e) {
+    return { success: false, pushed, pulled, error: e instanceof Error ? e.message : "Sync failed" };
+  }
+}
+
+/** Full sync of last N days — run once on app load */
 export async function syncNow(
   modifiedThisSession: Set<string> = new Set()
 ): Promise<SyncResult> {
@@ -141,11 +193,7 @@ export async function syncNow(
       const cloudUpdatedAt = cloudRows.data?.updated_at as string | undefined;
       const useLocal =
         !cloudUpdatedAt ||
-        !shouldUseCloud(
-          localUpdatedAt,
-          cloudUpdatedAt,
-          modifiedThisSession.has(dateKey)
-        );
+        !shouldUseCloud(localUpdatedAt, cloudUpdatedAt, modifiedThisSession.has(dateKey));
 
       if (useLocal) {
         const ok = await pushDay(dateKey, data);
@@ -155,13 +203,8 @@ export async function syncNow(
 
     const cloudRows = await pullRange(SYNC_DAYS);
     for (const { date, data, updated_at } of cloudRows) {
-      const localData = await getDayData(date);
       const localUpdatedAt = await getLocalUpdatedAt(date);
-      const useCloud = shouldUseCloud(
-        localUpdatedAt,
-        updated_at,
-        modifiedThisSession.has(date)
-      );
+      const useCloud = shouldUseCloud(localUpdatedAt, updated_at, modifiedThisSession.has(date));
 
       if (useCloud && !isEmptyDay(data)) {
         await setDayDataFromSync(date, data, new Date(updated_at).getTime());

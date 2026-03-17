@@ -19,6 +19,7 @@ import { StreakBanner } from "@/components/today/StreakBanner";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
 import { getDateKey } from "@/types";
 import { useSync } from "@/components/SyncContext";
+import { syncDay } from "@/lib/sync";
 
 export default function TodayPage() {
   const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
@@ -28,11 +29,20 @@ export default function TodayPage() {
   const isToday = selectedDateKey === getDateKey();
   const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
   const sync = useSync();
+  const fullSyncDone = useRef(false);
 
+  // Full sync once on first load
+  useEffect(() => {
+    if (!sync || fullSyncDone.current) return;
+    fullSyncDone.current = true;
+    sync.sync().then(() => refresh());
+  }, [sync]);
+
+  // Fast single-day sync on date navigation
   useEffect(() => {
     if (!sync) return;
     setIsSyncing(true);
-    sync.sync().then(() => refresh()).finally(() => setIsSyncing(false));
+    syncDay(selectedDateKey).then(() => refresh()).finally(() => setIsSyncing(false));
   }, [selectedDateKey]);
 
   useEffect(() => {
