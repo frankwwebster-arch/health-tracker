@@ -18,13 +18,20 @@ import { MigrationBanner } from "@/components/MigrationBanner";
 import { StreakBanner } from "@/components/today/StreakBanner";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
 import { getDateKey } from "@/types";
+import { useSync } from "@/components/SyncContext";
 
 export default function TodayPage() {
-  const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
-  const { data, update } = useTodayData(selectedDateKey);
-  const { settings } = useSettings();
-  const isToday = selectedDateKey === getDateKey();
-  const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
+const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
+const { data, update, refresh } = useTodayData(selectedDateKey);
+const { settings } = useSettings();
+const isToday = selectedDateKey === getDateKey();
+const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
+const sync = useSync();
+
+useEffect(() => {
+  if (!sync) return;
+  sync.sync().then(() => refresh());
+}, [selectedDateKey]);
 
   useEffect(() => {
     if (!data) return;
