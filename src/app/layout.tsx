@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "Health Tracker",
   description: "Personal daily health tick-box tracker",
   manifest: "/manifest.json",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({
