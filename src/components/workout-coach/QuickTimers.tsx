@@ -5,9 +5,18 @@ import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 const PRESETS = [15, 20, 30, 45, 60] as const;
 
-export function QuickTimers() {
+export type QuickTimersBarProps = {
+  /** Extra classes for the outer wrapper (e.g. padding) */
+  className?: string;
+};
+
+/**
+ * Timer presets + countdown — no fixed positioning.
+ * Parent should place this in the thumb zone (fixed bottom dock).
+ */
+export function QuickTimersBar({ className = "" }: QuickTimersBarProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  const totalRef = useRef(0);
+  const [activePreset, setActivePreset] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -18,7 +27,7 @@ export function QuickTimers() {
 
   const start = (sec: number) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    totalRef.current = sec;
+    setActivePreset(sec);
     setSecondsLeft(sec);
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -28,6 +37,7 @@ export function QuickTimers() {
             intervalRef.current = null;
           }
           signalTimerEnd();
+          setActivePreset(null);
           return null;
         }
         return prev - 1;
@@ -36,29 +46,34 @@ export function QuickTimers() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-surface/95 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <div className="max-w-lg mx-auto px-3 py-3">
-        <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 text-center">
-          Quick timer
-        </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {PRESETS.map((s) => (
+    <div className={`touch-manipulation ${className}`}>
+      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
+        Rest timer
+      </p>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {PRESETS.map((s) => {
+          const isActive = activePreset === s && secondsLeft != null && secondsLeft > 0;
+          return (
             <button
               key={s}
               type="button"
               onClick={() => start(s)}
-              className="min-h-[48px] min-w-[56px] px-3 rounded-xl text-base font-semibold bg-accent text-white shadow-sm active:scale-[0.98] transition-transform"
+              className={`snap-start shrink-0 min-h-[52px] min-w-[64px] px-4 rounded-2xl text-lg font-bold transition-colors active:opacity-80 touch-manipulation ${
+                isActive
+                  ? "bg-sky-600 text-white shadow-lg ring-2 ring-sky-400 scale-[1.02]"
+                  : "bg-sky-100 text-sky-950 border-2 border-sky-200 hover:bg-sky-200"
+              }`}
             >
               {s}s
             </button>
-          ))}
-        </div>
-        {secondsLeft != null && (
-          <p className="text-center mt-3 text-2xl font-bold tabular-nums text-gray-900">
-            {secondsLeft}
-          </p>
-        )}
+          );
+        })}
       </div>
+      {secondsLeft != null && (
+        <p className="text-center mt-2 text-5xl font-black tabular-nums text-sky-900 leading-none">
+          {secondsLeft}
+        </p>
+      )}
     </div>
   );
 }

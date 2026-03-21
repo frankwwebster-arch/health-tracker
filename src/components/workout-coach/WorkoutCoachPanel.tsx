@@ -9,22 +9,25 @@ import type {
 } from "@/types";
 import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
-import {
-  computeFlags,
-  decideWorkout,
-  SUGGESTED_WEEKLY_CARDIO_RIDES,
-} from "@/lib/workout-coach/decision-engine";
+import { computeFlags, decideWorkout } from "@/lib/workout-coach/decision-engine";
 import {
   hasSwimToday,
   isSwimPelotonSession,
   lastWorkoutTypeLabel,
 } from "@/lib/workout-coach/peloton";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
-import { QuickTimers } from "./QuickTimers";
+import { QuickTimersBar } from "./QuickTimers";
 import { getDayData } from "@/db";
 import { useSettings } from "@/hooks/useTodayData";
 import { kbWeightLabel } from "@/lib/workout-coach/exercise-catalog";
 import { nextExtraPushSuggestion } from "@/lib/workout-coach/stretch-suggestions";
+import {
+  getCoachStatusTone,
+  getTodayDecisionHint,
+  getTodayDecisionLabel,
+  STATUS_CARD_STYLES,
+  statusIconEmoji,
+} from "@/components/workout-coach/coach-status-ui";
 
 type UpdateFn = (prev: DayData) => DayData;
 
@@ -208,60 +211,76 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     }
   };
 
+  const statusTone = getCoachStatusTone(decision, coach.preferLowEnergy ?? false);
+  const decisionLabel = getTodayDecisionLabel(decision);
+  const decisionHint = getTodayDecisionHint(decision, flags);
+  const workoutTotalMin =
+    workout != null ? workout.blocks.reduce((sum, b) => sum + b.minutes, 0) : 0;
+
+  /** Scroll padding so content clears fixed thumb dock (Generate + grid + toggles + timers). */
+  const scrollPad = isToday
+    ? "pb-[calc(30rem+env(safe-area-inset-bottom))]"
+    : "pb-10";
+
   return (
-    <div className="pb-40">
-      {/* Coach decision */}
-      <section className="mb-6 rounded-2xl border border-border bg-white p-4 shadow-card">
-        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-          Coach says
-        </h2>
-        <p className="text-lg font-semibold text-gray-900 leading-snug">{decision.headline}</p>
-        {decision.subline && (
-          <p className="text-sm text-muted mt-2 leading-relaxed">{decision.subline}</p>
+    <div className="relative min-h-[100dvh] w-full max-w-md mx-auto touch-manipulation">
+      {/* Upper zone: status + read-only context — scrolls; primary taps live in fixed dock */}
+      <div className={`overflow-y-auto overscroll-y-contain px-3 pt-2 space-y-4 ${scrollPad}`}>
+        {/* 1 — Status only (no actions — thumb zone is the dock) */}
+        <section
+          className={`sticky top-0 z-20 rounded-2xl border-2 p-4 sm:p-5 ${STATUS_CARD_STYLES[statusTone]} shadow-md`}
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-2xl leading-none shrink-0 select-none" aria-hidden>
+              {statusIconEmoji(statusTone)}
+            </span>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Today</p>
+              <h1 className="text-lg sm:text-xl font-extrabold leading-snug">{decision.headline}</h1>
+              {decision.subline && (
+                <p className="text-sm leading-snug opacity-90 line-clamp-4">{decision.subline}</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 2 — Today’s decision */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+          Suggested today
+        </p>
+        <p className="text-lg font-bold text-slate-900">{decisionLabel}</p>
+        {decisionHint && (
+          <p className="text-sm text-slate-600 mt-2 leading-snug">{decisionHint}</p>
         )}
-        {(decision.outcome === "strength" || decision.outcome === "consecutive_training_warning") && (
+      </section>
+
+      {showBootcampCard && decision.outcome === "bootcamp_suggestion" && (
+        <section className="rounded-2xl border-2 border-sky-200 bg-sky-50/80 p-4 text-sky-950 space-y-3">
+          <p className="text-sm leading-snug">
+            <span className="font-semibold">Bike:</span> ~{decision.durationMinutes} min bootcamp.
+          </p>
           <button
             type="button"
-            onClick={handleApplySuggestion}
-            className="mt-4 min-h-[44px] px-4 rounded-xl text-sm font-semibold border border-accent text-accent hover:bg-accent-soft/60"
+            onClick={() => setShowStrengthInstead(true)}
+            className="w-full min-h-[52px] rounded-2xl border-2 border-sky-300 bg-white text-sky-900 text-base font-bold active:bg-sky-50"
           >
-            Use these session toggles (short / low energy)
+            Train at home instead
           </button>
-        )}
-        {isToday && (
-          <div className="mt-4 pt-4 border-t border-border space-y-3">
-            <p className="text-xs font-semibold text-muted uppercase">Quick inputs</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setCoach({ golfToday: !coach.golfToday })}
-                className={`min-h-[44px] px-3 rounded-xl text-sm font-medium border ${
-                  coach.golfToday ? "bg-accent text-white border-accent" : "border-border bg-white"
-                }`}
-              >
-                Golf today
-              </button>
-              <button
-                type="button"
-                onClick={() => setCoach({ manualBootcampToday: !coach.manualBootcampToday })}
-                className={`min-h-[44px] px-3 rounded-xl text-sm font-medium border ${
-                  coach.manualBootcampToday ? "bg-accent text-white border-accent" : "border-border bg-white"
-                }`}
-              >
-                I already did a bootcamp
-              </button>
-              <button
-                type="button"
-                onClick={toggleSwim}
-                className={`min-h-[44px] px-3 rounded-xl text-sm font-medium border ${
-                  hasSwimToday(data) ? "bg-accent text-white border-accent" : "border-border bg-white"
-                }`}
-              >
-                Swim
-              </button>
-            </div>
+        </section>
+      )}
+
+      {/* Optional context — grey, not in the 3-second path */}
+      {isToday && (
+        <details className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-slate-700 group">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-600 list-none flex items-center justify-between [&::-webkit-details-marker]:hidden">
+            <span>More context</span>
+            <span className="text-slate-400 text-xs">Sleep · steps · Peloton</span>
+          </summary>
+          <div className="mt-4 space-y-4 pt-2 border-t border-slate-200">
             <div>
-              <p className="text-xs text-muted mb-1">Sleep (optional)</p>
+              <p className="text-xs font-medium text-slate-500 mb-2">Sleep</p>
               <div className="flex flex-wrap gap-2">
                 {(["good", "ok", "poor"] as const).map((s) => (
                   <button
@@ -272,8 +291,10 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                         sleepQuality: coach.sleepQuality === s ? undefined : s,
                       })
                     }
-                    className={`min-h-[40px] px-3 rounded-lg text-sm capitalize border ${
-                      coach.sleepQuality === s ? "bg-gray-800 text-white border-gray-800" : "border-border"
+                    className={`min-h-[48px] px-4 rounded-2xl text-sm font-semibold capitalize border-2 ${
+                      coach.sleepQuality === s
+                        ? "bg-slate-700 text-white border-slate-700"
+                        : "border-slate-300 bg-white text-slate-800"
                     }`}
                   >
                     {s}
@@ -282,7 +303,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
               </div>
             </div>
             <div>
-              <p className="text-xs text-muted mb-1">Walking load (optional — auto from steps if unset)</p>
+              <p className="text-xs font-medium text-slate-500 mb-2">Walking load</p>
               <div className="flex flex-wrap gap-2">
                 {(["low", "medium", "high"] as const).map((s) => (
                   <button
@@ -293,8 +314,10 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                         stepLevel: coach.stepLevel === s ? undefined : s,
                       })
                     }
-                    className={`min-h-[40px] px-3 rounded-lg text-sm capitalize border ${
-                      coach.stepLevel === s ? "bg-gray-800 text-white border-gray-800" : "border-border"
+                    className={`min-h-[48px] px-4 rounded-2xl text-sm font-semibold capitalize border-2 ${
+                      coach.stepLevel === s
+                        ? "bg-slate-700 text-white border-slate-700"
+                        : "border-slate-300 bg-white text-slate-800"
                     }`}
                   >
                     {s}
@@ -302,105 +325,45 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 ))}
               </div>
               {data.stepsCount != null && (
-                <p className="text-xs text-muted mt-1">Steps today: {data.stepsCount.toLocaleString()}</p>
+                <p className="text-xs text-slate-500 mt-2">
+                  Steps: {data.stepsCount.toLocaleString()}
+                </p>
               )}
             </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Rides (7d): {flags.pelotonRidesThisWeek}
+              {flags.weeklyCardioRidesTargetMet ? " · cardio target met" : ""} · Bootcamps (7d):{" "}
+              {flags.bootcampsThisWeek} · Streak: {flags.consecutiveTrainingDays}d
+              {flags.swimToday ? " · Swim" : ""} · Yesterday: {flags.lastWorkoutTypeYesterday}
+              {lastType ? ` · Last session: ${lastType}` : ""}
+            </p>
           </div>
-        )}
-        {isToday && (
-          <p className="text-xs text-muted mt-4 pt-3 border-t border-border leading-relaxed">
-            <span className="text-gray-700">
-              Peloton rides (last 7 days): {flags.pelotonRidesThisWeek} —{" "}
-              {flags.weeklyCardioRidesTargetMet
-                ? `${SUGGESTED_WEEKLY_CARDIO_RIDES}/${SUGGESTED_WEEKLY_CARDIO_RIDES} suggested cardio from rides met ✅ (more is fine)`
-                : `toward ${SUGGESTED_WEEKLY_CARDIO_RIDES}/week suggested cardio`}
-            </span>
-            <br />
-            Bootcamp days (7d): {flags.bootcampsThisWeek} · Training streak:{" "}
-            {flags.consecutiveTrainingDays}d
-            {flags.swimToday ? " · Swim: yes" : ""} · Yesterday: {flags.lastWorkoutTypeYesterday}
-            {lastType ? ` · Today Peloton: ${lastType}` : ""}
-          </p>
-        )}
-      </section>
-
-      {showBootcampCard && decision.outcome === "bootcamp_suggestion" && (
-        <section className="mb-6 rounded-2xl border border-accent/30 bg-accent-soft/30 p-4">
-          <p className="text-sm text-gray-800">
-            <span className="font-semibold">On the bike:</span> aim for a{" "}
-            <strong>{decision.durationMinutes} min</strong> bootcamp-style class. You can still
-            switch to home strength below.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowStrengthInstead(true)}
-            className="mt-3 text-sm font-semibold text-accent underline"
-          >
-            I&apos;ll train at home instead →
-          </button>
-        </section>
+        </details>
       )}
 
-      {/* Strength session controls */}
-      {canTrainStrength && (
-        <section className="mb-8 space-y-4">
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Home strength
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={toggleShort}
-              className={`min-h-[48px] px-4 rounded-xl text-sm font-semibold border transition-colors ${
-                coach.preferShort
-                  ? "bg-accent text-white border-accent"
-                  : "bg-white border-border text-gray-800"
-              }`}
-            >
-              Short (20–25 min)
-            </button>
-            <button
-              type="button"
-              onClick={toggleLow}
-              className={`min-h-[48px] px-4 rounded-xl text-sm font-semibold border transition-colors ${
-                coach.preferLowEnergy
-                  ? "bg-accent text-white border-accent"
-                  : "bg-white border-border text-gray-800"
-              }`}
-            >
-              Low energy
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            className="w-full min-h-[56px] rounded-2xl bg-accent text-white text-lg font-semibold shadow-md active:scale-[0.99] transition-transform"
-          >
-            Generate workout
-          </button>
-          {workout && (
-            <button
-              type="button"
-              onClick={handleClearWorkout}
-              className="text-sm text-muted hover:text-gray-800"
-            >
-              Clear workout
-            </button>
-          )}
-        </section>
-      )}
-
-      {/* Section 3 — Workout + block timers */}
+      {/* Generated workout */}
       {workout && canTrainStrength && (
-        <section className="mb-8 space-y-6">
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
-            Your workout
-          </h2>
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Your workout
+            </h2>
+            <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
+          </div>
           {workout.stretchGoal && (
-            <p className="text-sm text-gray-700 border-l-4 border-accent pl-3 py-1">
+            <p className="text-sm text-slate-700 border-l-4 border-blue-500 pl-3 py-1 bg-slate-50 rounded-r-lg">
               Extra: {workout.stretchGoal}
             </p>
           )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleClearWorkout}
+              className="text-sm font-medium text-slate-500 hover:text-slate-800"
+            >
+              Clear workout
+            </button>
+          </div>
           {workout.blocks.map((block, idx) => (
             <BlockCard
               key={block.id}
@@ -416,15 +379,100 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
         </section>
       )}
 
-      {/* Section 4 — Post log */}
       {canTrainStrength && workout && (
-        <PostWorkoutForm
-          postLog={postLog}
-          onSave={(log) => setCoach({ postLog: log })}
-        />
+        <PostWorkoutForm postLog={postLog} onSave={(log) => setCoach({ postLog: log })} />
       )}
+      </div>
 
-      <QuickTimers />
+      {/* Thumb zone: fixed dock — Generate, quick toggles, rest timers (lower ~60% of interaction) */}
+      {isToday && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-slate-200 bg-white/98 backdrop-blur-md shadow-[0_-12px_40px_rgba(15,23,42,0.1)] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          role="region"
+          aria-label="Workout actions"
+        >
+          <div className="max-w-md mx-auto px-3 pt-3 space-y-3">
+            {canTrainStrength && (
+              <button
+                type="button"
+                onClick={handleGenerate}
+                className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/25 active:bg-blue-700 active:scale-[0.99] transition-transform"
+              >
+                Generate workout
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCoach({ manualBootcampToday: !coach.manualBootcampToday })}
+                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                  coach.manualBootcampToday
+                    ? "border-amber-400 bg-amber-100 text-amber-950"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+                }`}
+              >
+                Bootcamp
+              </button>
+              <button
+                type="button"
+                onClick={() => setCoach({ golfToday: !coach.golfToday })}
+                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                  coach.golfToday
+                    ? "border-emerald-400 bg-emerald-100 text-emerald-950"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+                }`}
+              >
+                Golf
+              </button>
+              <button
+                type="button"
+                onClick={toggleSwim}
+                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                  hasSwimToday(data)
+                    ? "border-sky-400 bg-sky-100 text-sky-950"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+                }`}
+              >
+                Swim
+              </button>
+              <button
+                type="button"
+                onClick={toggleLow}
+                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                  coach.preferLowEnergy
+                    ? "border-amber-400 bg-amber-100 text-amber-950"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+                }`}
+              >
+                Low energy
+              </button>
+            </div>
+            {canTrainStrength && (
+              <button
+                type="button"
+                onClick={toggleShort}
+                className={`w-full min-h-[48px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                  coach.preferShort
+                    ? "border-slate-500 bg-slate-200 text-slate-950"
+                    : "border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Short session
+              </button>
+            )}
+            {(decision.outcome === "strength" || decision.outcome === "consecutive_training_warning") && (
+              <button
+                type="button"
+                onClick={handleApplySuggestion}
+                className="w-full min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
+              >
+                Apply coach toggles
+              </button>
+            )}
+            <QuickTimersBar />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -447,16 +495,16 @@ function BlockExtraPushRow({
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-border/80">
+    <div className="mt-3 pt-3 border-t border-slate-100">
       <button
         type="button"
         onClick={handleExtraPush}
-        className="w-full min-h-[44px] rounded-xl border border-dashed border-accent/50 bg-accent-soft/40 text-accent font-semibold text-sm hover:bg-accent-soft/70 transition-colors"
+        className="w-full min-h-[44px] rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-700 font-semibold text-sm hover:bg-slate-100 transition-colors"
       >
-        Extra Push
+        Extra push
       </button>
       {hint && (
-        <p className="mt-2 text-sm text-gray-800 font-medium leading-snug rounded-xl bg-gray-50 px-3 py-2 border border-border">
+        <p className="mt-2 text-sm text-slate-800 font-medium leading-snug rounded-xl bg-slate-50 px-3 py-2 border border-slate-200">
           {hint}
         </p>
       )}
@@ -464,7 +512,7 @@ function BlockExtraPushRow({
         <button
           type="button"
           onClick={handleExtraPush}
-          className="mt-2 text-sm text-muted hover:text-gray-800 underline"
+          className="mt-2 text-sm text-slate-600 hover:text-slate-900 underline"
         >
           Another idea
         </button>
@@ -528,51 +576,56 @@ function BlockCard({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div>
-          <p className="text-xs font-medium text-muted uppercase">
-            Block {index + 1} / {total}
+    <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+            Block {index + 1} of {total}
           </p>
-          <h3 className="text-base font-semibold text-gray-900 mt-1">{block.title}</h3>
+          <h3 className="text-base font-bold text-slate-900 mt-1 leading-snug">{block.title}</h3>
         </div>
         {(phase === "work" || phase === "rest") && (
-          <div className="text-3xl font-bold tabular-nums text-accent shrink-0">
+          <div className="text-3xl font-bold tabular-nums text-blue-600 shrink-0">
             {formatMmSs(secondsLeft)}
           </div>
         )}
       </div>
-      <ul className="space-y-2 mb-3">
+      <ul className="space-y-3 mb-4">
         {block.exercises.map((ex, i) => (
-          <li key={i} className="text-sm">
-            <span className="font-medium text-gray-900">{ex.name}</span>
-            <span className="text-muted"> — {ex.detail}</span>
+          <li key={i} className="text-base leading-relaxed">
+            <span className="font-bold text-slate-900">{ex.name}</span>
+            <span className="text-slate-600"> — {ex.detail}</span>
           </li>
         ))}
       </ul>
-      <BlockExtraPushRow blockKind={block.kind} preferLowEnergy={preferLowEnergy} />
       {block.coaching && (
-        <p className="text-xs text-muted mb-3 border-t border-border pt-2">{block.coaching}</p>
+        <p className="text-xs text-slate-500 mb-4 leading-relaxed">{block.coaching}</p>
       )}
       {phase === "idle" && (
-        <button
-          type="button"
-          onClick={handleStart}
-          className="w-full min-h-[48px] rounded-xl bg-gray-900 text-white font-semibold"
-        >
-          Start block
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={handleStart}
+            className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/20 active:scale-[0.99] touch-manipulation"
+          >
+            Start block
+          </button>
+          <BlockExtraPushRow blockKind={block.kind} preferLowEnergy={preferLowEnergy} />
+        </>
       )}
-      {phase === "work" && <p className="text-sm font-medium text-accent text-center">Go</p>}
+      {phase === "work" && (
+        <p className="text-center text-lg font-black text-blue-600 uppercase tracking-wide">Go</p>
+      )}
       {phase === "rest" && (
-        <div className="space-y-2">
-          <p className="text-sm text-center text-muted">Rest — then next block when ready</p>
+        <div className="space-y-3">
+          <p className="text-center text-lg font-black text-emerald-700">Block complete</p>
+          <p className="text-center text-3xl font-black text-slate-800 tabular-nums">Rest</p>
           <button
             type="button"
             onClick={handleNextAfterRest}
-            className="w-full min-h-[48px] rounded-xl border border-border font-semibold text-gray-800"
+            className="w-full min-h-[56px] rounded-2xl border-2 border-slate-300 bg-white text-lg font-extrabold text-slate-900 active:bg-slate-50 touch-manipulation"
           >
-            Rest done — next block
+            Next block
           </button>
         </div>
       )}
@@ -610,13 +663,14 @@ function PostWorkoutForm({
   };
 
   return (
-    <section className="mb-8 rounded-2xl border border-border bg-white p-4 shadow-card">
-      <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-4">
-        Log (optional)
-      </h2>
-      <div className="space-y-3">
+    <details className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/90 p-4 text-slate-800">
+      <summary className="cursor-pointer text-sm font-bold text-slate-600 list-none flex items-center justify-between mb-0 [&::-webkit-details-marker]:hidden">
+        <span>Post-workout log</span>
+        <span className="text-xs font-normal text-slate-400">Optional</span>
+      </summary>
+      <div className="space-y-3 mt-4 pt-4 border-t border-slate-200">
         <label className="block">
-          <span className="text-sm font-medium text-gray-800">AMRAP rounds / notes</span>
+          <span className="text-sm font-medium text-slate-800">Rounds / notes</span>
           <input
             type="number"
             min={0}
@@ -624,11 +678,11 @@ function PostWorkoutForm({
             value={rounds === "" ? "" : rounds}
             onChange={(e) => setRounds(e.target.value === "" ? "" : e.target.value)}
             onBlur={persist}
-            className="mt-1 w-full rounded-xl border border-border px-3 py-2.5 text-gray-800"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900"
           />
         </label>
         <div className="flex gap-3 items-center">
-          <span className="text-sm font-medium text-gray-800">Top set?</span>
+          <span className="text-sm font-medium text-slate-800">Top set?</span>
           <button
             type="button"
             onClick={() => {
@@ -646,7 +700,7 @@ function PostWorkoutForm({
               });
             }}
             className={`min-h-[44px] px-4 rounded-xl font-medium border ${
-              topSet === true ? "bg-accent text-white border-accent" : "border-border"
+              topSet === true ? "bg-slate-700 text-white border-slate-700" : "border-slate-200 bg-white"
             }`}
           >
             Yes
@@ -668,26 +722,26 @@ function PostWorkoutForm({
               });
             }}
             className={`min-h-[44px] px-4 rounded-xl font-medium border ${
-              topSet === false ? "bg-accent text-white border-accent" : "border-border"
+              topSet === false ? "bg-slate-700 text-white border-slate-700" : "border-slate-200 bg-white"
             }`}
           >
             No
           </button>
         </div>
         <label className="block">
-          <span className="text-sm font-medium text-gray-800">Notes</span>
+          <span className="text-sm font-medium text-slate-800">Notes</span>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={persist}
             rows={2}
-            className="mt-1 w-full rounded-xl border border-border px-3 py-2.5 text-gray-800"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900"
           />
         </label>
-        <p className="text-xs font-semibold text-muted uppercase pt-2">Garmin (manual)</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase pt-2">Garmin (manual)</p>
         <div className="grid grid-cols-3 gap-2">
           <label className="block col-span-1">
-            <span className="text-xs text-muted">Cal</span>
+            <span className="text-xs text-slate-500">Cal</span>
             <input
               type="number"
               min={0}
@@ -695,11 +749,11 @@ function PostWorkoutForm({
               value={cal === "" ? "" : cal}
               onChange={(e) => setCal(e.target.value === "" ? "" : e.target.value)}
               onBlur={persist}
-              className="mt-1 w-full rounded-xl border border-border px-2 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-sm"
             />
           </label>
           <label className="block col-span-1">
-            <span className="text-xs text-muted">Avg HR</span>
+            <span className="text-xs text-slate-500">Avg HR</span>
             <input
               type="number"
               min={0}
@@ -707,11 +761,11 @@ function PostWorkoutForm({
               value={hr === "" ? "" : hr}
               onChange={(e) => setHr(e.target.value === "" ? "" : e.target.value)}
               onBlur={persist}
-              className="mt-1 w-full rounded-xl border border-border px-2 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-sm"
             />
           </label>
           <label className="block col-span-1">
-            <span className="text-xs text-muted">Min</span>
+            <span className="text-xs text-slate-500">Min</span>
             <input
               type="number"
               min={0}
@@ -719,12 +773,12 @@ function PostWorkoutForm({
               value={dur === "" ? "" : dur}
               onChange={(e) => setDur(e.target.value === "" ? "" : e.target.value)}
               onBlur={persist}
-              className="mt-1 w-full rounded-xl border border-border px-2 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-sm"
             />
           </label>
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
-          <span className="text-sm font-medium text-gray-800 w-full">Mood</span>
+          <span className="text-sm font-medium text-slate-800 w-full">Mood</span>
           {(["good", "flat", "tired"] as const).map((m) => (
             <button
               key={m}
@@ -744,7 +798,7 @@ function PostWorkoutForm({
                 });
               }}
               className={`min-h-[44px] px-3 rounded-xl text-sm font-medium border capitalize ${
-                mood === m ? "bg-accent text-white border-accent" : "border-border"
+                mood === m ? "bg-slate-700 text-white border-slate-700" : "border-slate-200 bg-white"
               }`}
             >
               {m}
@@ -752,7 +806,7 @@ function PostWorkoutForm({
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className="text-sm font-medium text-gray-800 w-full">Energy</span>
+          <span className="text-sm font-medium text-slate-800 w-full">Energy</span>
           {(["high", "ok", "low"] as const).map((e) => (
             <button
               key={e}
@@ -772,7 +826,7 @@ function PostWorkoutForm({
                 });
               }}
               className={`min-h-[44px] px-3 rounded-xl text-sm font-medium border capitalize ${
-                energy === e ? "bg-accent text-white border-accent" : "border-border"
+                energy === e ? "bg-slate-700 text-white border-slate-700" : "border-slate-200 bg-white"
               }`}
             >
               {e}
@@ -780,6 +834,6 @@ function PostWorkoutForm({
           ))}
         </div>
       </div>
-    </section>
+    </details>
   );
 }

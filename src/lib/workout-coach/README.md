@@ -1,5 +1,14 @@
 # Workout Coach — engine overview
 
+## Mobile UI (Coach panel)
+
+- **Upper scroll area:** status + “Suggested today” + workout blocks + post log — **no primary taps** in the status card.
+- **Fixed thumb dock (bottom):** Generate, Bootcamp / Golf / Swim / Low energy, Short, Apply toggles, **rest timer strip** (horizontal scroll, large presets). Safe-area padding on iOS.
+- Timers use `QuickTimersBar` only inside that dock.
+
+---
+
+
 ## Files
 
 | File | Purpose |

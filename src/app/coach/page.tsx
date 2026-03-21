@@ -63,9 +63,9 @@ export default function CoachPage() {
   return (
     <>
       <LayoutHeader title="Workout Coach" />
-      <main className="max-w-lg mx-auto px-4 pt-6 pb-8">
-        <p className="text-sm text-muted mb-6">
-          One tap → train → log. No planning.
+      <main className="max-w-md mx-auto px-3 sm:px-4 pt-4 pb-4">
+        <p className="text-xs text-slate-500 mb-4 leading-snug">
+          Status on top · actions & timers at the bottom (thumb zone).
         </p>
         <WorkoutCoachPanel data={data} update={update} dateKey={todayKey} />
       </main>

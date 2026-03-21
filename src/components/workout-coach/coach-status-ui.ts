@@ -1,0 +1,97 @@
+import type { DailyWorkoutFlags, DecisionResult } from "@/lib/workout-coach/decision-engine";
+
+export type CoachStatusTone = "green" | "amber" | "blue";
+
+/** Traffic-light status for the top card (not analytics — quick read). */
+export function getCoachStatusTone(
+  decision: DecisionResult,
+  preferLowEnergy: boolean
+): CoachStatusTone {
+  if (decision.outcome === "no_workout") return "green";
+  if (decision.outcome === "consecutive_training_warning") return "amber";
+  if (preferLowEnergy) return "amber";
+  if (decision.outcome === "strength") {
+    const h = decision.headline.toLowerCase();
+    if (
+      decision.preferLowEnergy ||
+      h.includes("light") ||
+      h.includes("optional") ||
+      h.includes("recovery")
+    ) {
+      return "amber";
+    }
+  }
+  return "blue";
+}
+
+export const STATUS_CARD_STYLES: Record<CoachStatusTone, string> = {
+  green:
+    "bg-emerald-50 border-emerald-200/90 text-emerald-950 shadow-sm ring-1 ring-emerald-100",
+  amber:
+    "bg-amber-50 border-amber-200/90 text-amber-950 shadow-sm ring-1 ring-amber-100",
+  blue: "bg-sky-50 border-sky-200/90 text-sky-950 shadow-sm ring-1 ring-sky-100",
+};
+
+/** One-line “what today is” for the decision card. */
+export function getTodayDecisionLabel(decision: DecisionResult): string {
+  switch (decision.outcome) {
+    case "no_workout":
+      return "No further training needed";
+    case "bootcamp_suggestion":
+      return "Bootcamp (Peloton)";
+    case "consecutive_training_warning":
+      return "Rest or very light session";
+    case "strength": {
+      const h = decision.headline.toLowerCase();
+      if (h.includes("optional")) return "Light strength (optional)";
+      if (h.includes("recovery") || h.includes("light")) return "Light / recovery session";
+      return "Strength (home)";
+    }
+    default:
+      return "See coach message";
+  }
+}
+
+/** Short “why” for the decision card (optional). */
+export function getTodayDecisionHint(
+  decision: DecisionResult,
+  flags: DailyWorkoutFlags
+): string | undefined {
+  if (decision.outcome === "no_workout") {
+    if (flags.golfToday) return "Golf day";
+    if (flags.bootcampDoneToday) return "Bootcamp already logged today";
+    if (flags.strengthDoneToday) return "Strength already logged today";
+    if (flags.swimToday && (flags.strengthDoneToday || flags.bootcampDoneToday))
+      return "Activity sufficient for today";
+    return undefined;
+  }
+  if (decision.outcome === "bootcamp_suggestion") {
+    return `${flags.bootcampsThisWeek} bootcamp(s) in last 7 days · rides ${flags.pelotonRidesThisWeek}/7d`;
+  }
+  if (decision.outcome === "consecutive_training_warning") {
+    return `${flags.consecutiveTrainingDays} days trained in a row`;
+  }
+  if (decision.outcome === "strength" && flags.bootcampsThisWeek >= 2) {
+    return "Weekly bootcamp cap — strength or rest";
+  }
+  if (flags.swimToday && decision.outcome === "strength") {
+    return "Swim logged — keep anything extra easy";
+  }
+  if (flags.sleepQuality === "poor") {
+    return "Poor sleep noted";
+  }
+  return undefined;
+}
+
+export function statusIconEmoji(tone: CoachStatusTone): string {
+  switch (tone) {
+    case "green":
+      return "✓";
+    case "amber":
+      return "⚠";
+    case "blue":
+      return "→";
+    default:
+      return "";
+  }
+}
