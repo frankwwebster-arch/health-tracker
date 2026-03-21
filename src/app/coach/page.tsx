@@ -5,15 +5,19 @@ import { LayoutHeader } from "@/components/LayoutHeader";
 import { WorkoutCoachPanel } from "@/components/workout-coach/WorkoutCoachPanel";
 import { useTodayData } from "@/hooks/useTodayData";
 import { useSync } from "@/components/SyncContext";
-import { syncDay } from "@/lib/sync";
 import { getDateKey } from "@/types";
 
 export default function CoachPage() {
   const todayKey = getDateKey();
   const { data, update, refresh } = useTodayData(todayKey);
   const sync = useSync();
+  const syncRef = useRef(sync);
   const fullSyncDone = useRef(false);
   const pelotonAutoSyncDone = useRef(false);
+
+  useEffect(() => {
+    syncRef.current = sync;
+  }, [sync]);
 
   useEffect(() => {
     if (!sync || fullSyncDone.current) return;
@@ -22,9 +26,10 @@ export default function CoachPage() {
   }, [sync, refresh]);
 
   useEffect(() => {
-    if (!sync) return;
-    syncDay(todayKey).then(() => refresh());
-  }, [sync, todayKey, refresh]);
+    const s = syncRef.current;
+    if (!s) return;
+    s.syncDayNow(todayKey).then(() => refresh());
+  }, [todayKey, refresh]);
 
   useEffect(() => {
     if (!data) return;

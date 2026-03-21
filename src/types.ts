@@ -228,6 +228,43 @@ export interface WorkoutCoachSavedExercise {
   detail: string;
 }
 
+/** Product modules — enable/disable per user (see `MODULE_REGISTRY`). */
+export type AppModuleId = "health_tracker" | "workout_coach" | "medication";
+
+/** Profile shown in app; email may mirror auth. */
+export interface UserProfile {
+  displayName: string | null;
+  email: string | null;
+}
+
+/**
+ * User-defined medication list (product is not hardcoded to specific drugs).
+ * Legacy `medicationTimes.dex` / `bupropion` remain until fully migrated in UI.
+ */
+export interface UserMedicationDefinition {
+  id: string;
+  name: string;
+  /** Reminder times as HH:mm */
+  scheduleTimes: string[];
+  dosesPerDay: number;
+  /** Free-text cadence (e.g. "with meals") */
+  frequency?: string;
+  dosageNotes?: string;
+  supplyCount?: number;
+  active: boolean;
+}
+
+/** Scaffold for reminder prefs — can absorb legacy `remindersEnabled` over time. */
+export interface ReminderPreferencesScaffold {
+  globalEnabled: boolean;
+  weekdayOnly: boolean;
+}
+
+/** Scaffold for future app prefs (theme, density, …). */
+export interface AppPreferencesScaffold {
+  theme?: "system" | "light" | "dark";
+}
+
 /** Tracks recent patterns so sessions vary without chaos (persisted in Settings). */
 export interface WorkoutCoachRotation {
   /** Newest first; Block 1 pair ids e.g. `goblet_row` */
@@ -241,6 +278,15 @@ export interface WorkoutCoachRotation {
 }
 
 export interface Settings {
+  /** Bump when adding migrations in `migrateSettings` */
+  settingsVersion?: number;
+  profile?: UserProfile;
+  /** Modules visible in shell; defaults to all if missing (legacy). */
+  enabledModules?: AppModuleId[];
+  /** User-configured medications (empty = rely on legacy fields + UI). */
+  userMedications?: UserMedicationDefinition[];
+  reminderPreferences?: ReminderPreferencesScaffold;
+  appPreferences?: AppPreferencesScaffold;
   remindersEnabled: boolean;
   weekdayOnly: boolean;
   waterGoalMl: number;
@@ -277,6 +323,12 @@ export interface CustomMed {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  settingsVersion: 2,
+  profile: { displayName: null, email: null },
+  enabledModules: ["health_tracker", "workout_coach", "medication"],
+  userMedications: [],
+  reminderPreferences: { globalEnabled: true, weekdayOnly: true },
+  appPreferences: {},
   remindersEnabled: true,
   weekdayOnly: true,
   waterGoalMl: 2000,

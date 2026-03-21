@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getDayData } from "@/db";
 import { getDateKey } from "@/types";
+import { useStorageScope } from "@/components/AuthProvider";
 
 function getPastDateKey(daysAgo: number): string {
   const d = new Date();
@@ -10,11 +11,11 @@ function getPastDateKey(daysAgo: number): string {
   return getDateKey(d);
 }
 
-async function calculateStreak(): Promise<number> {
+async function calculateStreak(scope: string): Promise<number> {
   let streak = 0;
   for (let i = 1; i <= 365; i++) {
     const key = getPastDateKey(i);
-    const day = await getDayData(key);
+    const day = await getDayData(scope, key);
     if (!day) break;
     const dexDoses = day.medication?.dex?.doses ?? [];
     const allDexTaken = dexDoses.length > 0 && dexDoses.every((d) => d.taken);
@@ -26,11 +27,12 @@ async function calculateStreak(): Promise<number> {
 }
 
 export function StreakBanner() {
+  const { scope } = useStorageScope();
   const [streak, setStreak] = useState<number | null>(null);
 
   useEffect(() => {
-    calculateStreak().then(setStreak);
-  }, []);
+    calculateStreak(scope).then(setStreak);
+  }, [scope]);
 
   if (streak === null) return null;
   if (streak === 0) return null;

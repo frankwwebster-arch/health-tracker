@@ -6,6 +6,7 @@ import { getDateKey } from "@/types";
 import type { DayData, Settings } from "@/types";
 import { useReminders } from "./ReminderContext";
 import type { ReminderType } from "./ReminderContext";
+import { useStorageScope } from "@/components/AuthProvider";
 
 const QUIET_START = 20 * 60; // 20:00 in minutes
 const QUIET_END = 7 * 60; // 07:00
@@ -50,15 +51,16 @@ function getReminderId(type: ReminderType, suffix?: string): string {
 
 export function ReminderScheduler() {
   const { addReminder } = useReminders();
+  const { scope } = useStorageScope();
   const notifiedThisRun = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     async function check() {
       const dateKey = getDateKey();
       const [dayData, settings, lastNotified] = await Promise.all([
-        getDayData(dateKey),
-        getSettings(),
-        getLastNotified(dateKey),
+        getDayData(scope, dateKey),
+        getSettings(scope),
+        getLastNotified(scope, dateKey),
       ]);
 
       const now = nowMinutes();
@@ -74,7 +76,7 @@ export function ReminderScheduler() {
           return;
         if (notifiedThisRun.current.has(id)) return;
         notifiedThisRun.current.add(id);
-        await setLastNotified(dateKey, id, nowMs);
+        await setLastNotified(scope, dateKey, id, nowMs);
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           const n = new Notification("Health Tracker", { body: title });
           n.onclick = () => window.focus();
@@ -158,7 +160,7 @@ export function ReminderScheduler() {
         !notifiedThisRun.current.has(waterId);
       if (waterOk) {
         notifiedThisRun.current.add(waterId);
-        setLastNotified(dateKey, waterId, nowMs).then(() => {});
+        setLastNotified(scope, dateKey, waterId, nowMs).then(() => {});
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           const n = new Notification("Health Tracker", { body: "Time for water? +250ml" });
           n.onclick = () => window.focus();
@@ -208,7 +210,7 @@ export function ReminderScheduler() {
         const lowNames = [...builtInNames, ...customNames].join(", ");
         const title = `Low supply: ${lowNames}. Refill soon.`;
         notifiedThisRun.current.add(supplyId);
-        setLastNotified(dateKey, supplyId, nowMs).then(() => {});
+        setLastNotified(scope, dateKey, supplyId, nowMs).then(() => {});
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           const n = new Notification("Health Tracker", { body: title });
           n.onclick = () => window.focus();
@@ -224,7 +226,7 @@ export function ReminderScheduler() {
     notifiedThisRun.current.clear();
     check();
     return () => clearInterval(interval);
-  }, [addReminder]);
+  }, [addReminder, scope]);
 
   return null;
 }

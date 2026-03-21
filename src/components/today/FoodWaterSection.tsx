@@ -5,6 +5,7 @@ import { getAllDayKeys, getDayData } from "@/db";
 import type { DayData, Settings } from "@/types";
 import { DEFAULT_SETTINGS } from "@/types";
 import { DoneWithUndoAction } from "./DoneWithUndoAction";
+import { useStorageScope } from "@/components/AuthProvider";
 
 function formatTime(ms: number): string {
   const d = new Date(ms);
@@ -160,6 +161,7 @@ interface Props {
 }
 
 export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
+  const { scope } = useStorageScope();
   const goal = settings?.waterGoalMl ?? DEFAULT_SETTINGS.waterGoalMl;
   const pct = goal > 0 ? Math.min(100, (data.waterMl / goal) * 100) : 0;
   const [foodHistoryByDate, setFoodHistoryByDate] = useState<
@@ -171,10 +173,10 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
 
     const loadFoodHistory = async () => {
       try {
-        const keys = await getAllDayKeys();
+        const keys = await getAllDayKeys(scope);
         const entries = await Promise.all(
           keys.map(async (key) => {
-            const day = await getDayData(key);
+            const day = await getDayData(scope, key);
             return [
               key,
               {
@@ -203,7 +205,7 @@ export function FoodWaterSection({ data, dateKey, settings, update }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dateKey]);
+  }, [dateKey, scope]);
 
   const suggestedSmoothieFoods = useMemo(() => {
     const counts = new Map<string, number>();

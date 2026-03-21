@@ -6,6 +6,7 @@ import { WorkoutCoachExtrasCard } from "@/components/dashboard/WorkoutCoachExtra
 import { getDayData, getAllDayKeys, getSettings } from "@/db";
 import type { DayData } from "@/types";
 import { getDateKey, getAdjacentDateKey } from "@/types";
+import { useStorageScope } from "@/components/AuthProvider";
 
 type Period = 7 | 14 | 30;
 
@@ -22,6 +23,7 @@ function sleepHours(bedtime: string, wakeTime: string): number {
 }
 
 export default function DashboardPage() {
+  const { scope } = useStorageScope();
   const [period, setPeriod] = useState<Period>(14);
   const [days, setDays] = useState<{ key: string; data: DayData }[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
@@ -32,14 +34,14 @@ export default function DashboardPage() {
     async function load() {
       const today = getDateKey();
       const startKey = getAdjacentDateKey(today, -period + 1);
-      const keys = await getAllDayKeys();
+      const keys = await getAllDayKeys(scope);
       const keysInRange = keys
         .filter((k) => k >= startKey && k <= today)
         .sort();
 
       const [dataList, settings] = await Promise.all([
-        Promise.all(keysInRange.map(async (k) => ({ key: k, data: await getDayData(k) }))),
-        getSettings(),
+        Promise.all(keysInRange.map(async (k) => ({ key: k, data: await getDayData(scope, k) }))),
+        getSettings(scope),
       ]);
 
       setDays(dataList);
@@ -48,7 +50,7 @@ export default function DashboardPage() {
       setLoading(false);
     }
     load();
-  }, [period]);
+  }, [period, scope]);
 
   if (loading) {
     return (

@@ -9,6 +9,7 @@ import {
   getLastSyncTime,
 } from "@/db";
 import { getDateKey, getAdjacentDateKey } from "@/types";
+import { CAN_SYNC_HEALTH_DATA_TO_CLOUD } from "@/lib/privacy";
 
 const SYNC_DAYS = 60;
 
@@ -17,6 +18,8 @@ export interface SyncResult {
   pushed: number;
   pulled: number;
   error?: string;
+  /** When cloud sync is disabled, explains why nothing was transferred */
+  skipped?: boolean;
 }
 
 function isEmptyDay(data: DayData): boolean {
@@ -56,6 +59,8 @@ function isEmptyDay(data: DayData): boolean {
 }
 
 export async function pushDay(dateKey: string, data: DayData): Promise<boolean> {
+  if (!CAN_SYNC_HEALTH_DATA_TO_CLOUD) return false;
+
   const supabase = createClient();
   if (!supabase) return false;
 
@@ -76,6 +81,8 @@ export async function pushDay(dateKey: string, data: DayData): Promise<boolean> 
 }
 
 export async function pullRange(days: number = SYNC_DAYS): Promise<{ date: string; data: DayData; updated_at: string }[]> {
+  if (!CAN_SYNC_HEALTH_DATA_TO_CLOUD) return [];
+
   const supabase = createClient();
   if (!supabase) return [];
 
@@ -114,9 +121,14 @@ function shouldUseCloud(
 
 /** Sync a single specific day — fast, used on date navigation */
 export async function syncDay(
+  scope: string,
   dateKey: string,
   modifiedThisSession: Set<string> = new Set()
 ): Promise<SyncResult> {
+  if (!CAN_SYNC_HEALTH_DATA_TO_CLOUD) {
+    return { success: true, pushed: 0, pulled: 0, skipped: true };
+  }
+
   const supabase = createClient();
   if (!supabase) return { success: false, pushed: 0, pulled: 0, error: "Sync not configured" };
 
@@ -127,9 +139,8 @@ export async function syncDay(
   let pulled = 0;
 
   try {
-    // Push local if newer
-    const localData = await getDayData(dateKey);
-    const localUpdatedAt = await getLocalUpdatedAt(dateKey);
+    const localData = await getDayData(scope, dateKey);
+    const localUpdatedAt = await getLocalUpdatedAt(scope, dateKey);
 
     const cloudRow = await supabase
       .from("tracker_days")
@@ -148,12 +159,11 @@ export async function syncDay(
       }
     }
 
-    // Pull cloud if newer
     if (cloudUpdatedAt && cloudRow.data?.data) {
       const useCloud = shouldUseCloud(localUpdatedAt, cloudUpdatedAt, modifiedThisSession.has(dateKey));
       const cloudData = cloudRow.data.data as DayData;
       if (useCloud && !isEmptyDay(cloudData)) {
-        await setDayDataFromSync(dateKey, cloudData, new Date(cloudUpdatedAt).getTime());
+        await setDayDataFromSync(scope, dateKey, cloudData, new Date(cloudUpdatedAt).getTime());
         pulled++;
       }
     }
@@ -166,8 +176,13 @@ export async function syncDay(
 
 /** Full sync of last N days — run once on app load */
 export async function syncNow(
+  scope: string,
   modifiedThisSession: Set<string> = new Set()
 ): Promise<SyncResult> {
+  if (!CAN_SYNC_HEALTH_DATA_TO_CLOUD) {
+    return { success: true, pushed: 0, pulled: 0, skipped: true };
+  }
+
   const supabase = createClient();
   if (!supabase) {
     return { success: false, pushed: 0, pulled: 0, error: "Sync not configured" };
@@ -184,14 +199,14 @@ export async function syncNow(
   try {
     const today = getDateKey();
     const startKey = getAdjacentDateKey(today, -SYNC_DAYS + 1);
-    const localKeys = await getAllDayKeys();
+    const localKeys = await getAllDayKeys(scope);
     const keysToPush = localKeys.filter((k) => k >= startKey && k <= today);
 
     for (const dateKey of keysToPush) {
-      const data = await getDayData(dateKey);
+      const data = await getDayData(scope, dateKey);
       if (isEmptyDay(data)) continue;
 
-      const localUpdatedAt = await getLocalUpdatedAt(dateKey);
+      const localUpdatedAt = await getLocalUpdatedAt(scope, dateKey);
       const cloudRows = await supabase
         .from("tracker_days")
         .select("updated_at")
@@ -212,16 +227,16 @@ export async function syncNow(
 
     const cloudRows = await pullRange(SYNC_DAYS);
     for (const { date, data, updated_at } of cloudRows) {
-      const localUpdatedAt = await getLocalUpdatedAt(date);
+      const localUpdatedAt = await getLocalUpdatedAt(scope, date);
       const useCloud = shouldUseCloud(localUpdatedAt, updated_at, modifiedThisSession.has(date));
 
       if (useCloud && !isEmptyDay(data)) {
-        await setDayDataFromSync(date, data, new Date(updated_at).getTime());
+        await setDayDataFromSync(scope, date, data, new Date(updated_at).getTime());
         pulled++;
       }
     }
 
-    await setLastSyncTime(Date.now());
+    await setLastSyncTime(scope, Date.now());
     return { success: true, pushed, pulled };
   } catch (e) {
     return {
@@ -233,6 +248,6 @@ export async function syncNow(
   }
 }
 
-export async function getLastSync(): Promise<number | null> {
-  return getLastSyncTime();
+export async function getLastSync(scope: string): Promise<number | null> {
+  return getLastSyncTime(scope);
 }

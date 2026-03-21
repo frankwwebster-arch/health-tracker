@@ -1,28 +1,51 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth, useStorageScope } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import type { DayData } from "@/types";
 import { getAllDayKeys, getDayData, setDayDataFromSync, getMigrationOffered, setMigrationOffered } from "@/db";
 import { getDateKey, getAdjacentDateKey } from "@/types";
 import { pullRange, pushDay } from "@/lib/sync";
+import { CAN_SYNC_HEALTH_DATA_TO_CLOUD } from "@/lib/privacy";
 
 type MigrationState = "idle" | "checking" | "upload" | "download" | "merge" | "done";
 
+function isDayDataEmpty(d: DayData): boolean {
+  return (
+    Boolean(d.medication.dex?.doses?.every((x) => !x.taken)) &&
+    !d.medication.bupropion?.taken &&
+    !d.lunchEaten &&
+    !d.smoothieEaten &&
+    !d.snackEaten &&
+    d.waterMl === 0 &&
+    d.workoutMinutes == null &&
+    !d.walkDone &&
+    d.stepsCount == null &&
+    d.weightKg == null &&
+    !d.bedtime &&
+    !d.wakeTime &&
+    d.sentimentMorning == null &&
+    d.sentimentMidday == null &&
+    d.sentimentEvening == null &&
+    Object.keys(d.customMedsTaken ?? {}).length === 0
+  );
+}
+
 export function MigrationBanner() {
   const { user, loading: authLoading } = useAuth();
+  const { scope } = useStorageScope();
   const [state, setState] = useState<MigrationState>("idle");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!CAN_SYNC_HEALTH_DATA_TO_CLOUD || !user || authLoading) return;
 
     let cancelled = false;
     setState("checking");
 
     async function check() {
-      const offered = await getMigrationOffered();
+      const offered = await getMigrationOffered(scope);
       if (offered || cancelled) {
         setState("idle");
         return;
@@ -39,20 +62,20 @@ export function MigrationBanner() {
 
       const today = getDateKey();
       const startKey = getAdjacentDateKey(today, -59);
-      const localKeys = await getAllDayKeys();
+      const localKeys = await getAllDayKeys(scope);
       const localKeysInRange = localKeys.filter((k) => k >= startKey && k <= today);
 
       let hasLocalData = false;
       for (const k of localKeysInRange) {
-        const d = await getDayData(k);
-        if (!isEmpty(d)) {
+        const d = await getDayData(scope, k);
+        if (!isDayDataEmpty(d)) {
           hasLocalData = true;
           break;
         }
       }
 
       const cloudRows = await pullRange(60);
-      const hasCloudData = cloudRows.some((r) => !isEmpty(r.data));
+      const hasCloudData = cloudRows.some((r) => !isDayDataEmpty(r.data));
 
       if (cancelled) return;
 
@@ -64,37 +87,19 @@ export function MigrationBanner() {
 
     check();
     return () => { cancelled = true; };
-  }, [user, authLoading]);
-
-  const isEmpty = (d: DayData) =>
-    d.medication.dex?.doses?.every((x) => !x.taken) &&
-    !d.medication.bupropion?.taken &&
-    !d.lunchEaten &&
-    !d.smoothieEaten &&
-    !d.snackEaten &&
-    d.waterMl === 0 &&
-    d.workoutMinutes == null &&
-    !d.walkDone &&
-    d.stepsCount == null &&
-    d.weightKg == null &&
-    !d.bedtime &&
-    !d.wakeTime &&
-    d.sentimentMorning == null &&
-    d.sentimentMidday == null &&
-    d.sentimentEvening == null &&
-    Object.keys(d.customMedsTaken ?? {}).length === 0;
+  }, [user, authLoading, scope]);
 
   const handleUpload = async () => {
     setBusy(true);
-    const keys = await getAllDayKeys();
+    const keys = await getAllDayKeys(scope);
     const today = getDateKey();
     const startKey = getAdjacentDateKey(today, -59);
     for (const k of keys) {
       if (k < startKey || k > today) continue;
-      const d = await getDayData(k);
-      if (!isEmpty(d)) await pushDay(k, d);
+      const d = await getDayData(scope, k);
+      if (!isDayDataEmpty(d)) await pushDay(k, d);
     }
-    await setMigrationOffered();
+    await setMigrationOffered(scope);
     setBusy(false);
     setState("done");
   };
@@ -103,11 +108,11 @@ export function MigrationBanner() {
     setBusy(true);
     const rows = await pullRange(60);
     for (const { date, data, updated_at } of rows) {
-      if (!isEmpty(data)) {
-        await setDayDataFromSync(date, data, new Date(updated_at).getTime());
+      if (!isDayDataEmpty(data)) {
+        await setDayDataFromSync(scope, date, data, new Date(updated_at).getTime());
       }
     }
-    await setMigrationOffered();
+    await setMigrationOffered(scope);
     setBusy(false);
     setState("done");
   };
@@ -115,14 +120,14 @@ export function MigrationBanner() {
   const handleMerge = async () => {
     setBusy(true);
     const { syncNow } = await import("@/lib/sync");
-    await syncNow(new Set());
-    await setMigrationOffered();
+    await syncNow(scope, new Set());
+    await setMigrationOffered(scope);
     setBusy(false);
     setState("done");
   };
 
   const dismiss = async () => {
-    await setMigrationOffered();
+    await setMigrationOffered(scope);
     setState("done");
   };
 

@@ -38,8 +38,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-surface">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold text-gray-800 mb-2">Health Tracker</h1>
-        <p className="text-muted text-sm mb-6">
-          Sign in to sync your data across devices.
+        <p className="text-muted text-sm mb-4 leading-relaxed">
+          Sign in with email—no password. We&apos;ll remember this device so you don&apos;t have to
+          sign in again unless you log out.
+        </p>
+        <p className="text-xs text-muted/90 mb-6 leading-relaxed rounded-xl bg-white/60 border border-border/80 px-3 py-2">
+          Your health data stays on this device by default for privacy. Sign-in is for identity only,
+          not for storing your wellness details in the cloud.
         </p>
 
         {sent ? (

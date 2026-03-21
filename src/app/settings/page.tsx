@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
-import type { Settings } from "@/types";
+import type { AppModuleId, Settings } from "@/types";
 import {
   resetToday,
   getAllDayKeys,
@@ -12,12 +13,15 @@ import {
   setDayData,
   setSettings as saveSettingsToDb,
 } from "@/db";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth, useStorageScope } from "@/components/AuthProvider";
 import { useSync } from "@/components/SyncContext";
+import { CAN_SYNC_HEALTH_DATA_TO_CLOUD } from "@/lib/privacy";
+import { MODULE_REGISTRY, defaultEnabledModules } from "@/lib/modules/registry";
 
 export default function SettingsPage() {
   const { settings, setSettings } = useSettings();
   const { user } = useAuth();
+  const { scope } = useStorageScope();
   const syncCtx = useSync();
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -141,6 +145,14 @@ export default function SettingsPage() {
     setSaved(true);
   };
 
+  const toggleModule = (id: AppModuleId) => {
+    const current = settings.enabledModules ?? defaultEnabledModules();
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
+    update({ enabledModules: next });
+  };
+
   const testNotification = async () => {
     if (typeof Notification !== "undefined") {
       if (Notification.permission === "denied") {
@@ -159,7 +171,7 @@ export default function SettingsPage() {
 
   const handleResetToday = async () => {
     if (confirm("Clear all of today’s ticks? This cannot be undone.")) {
-      await resetToday();
+      await resetToday(scope);
       setSaved(true);
     }
   };
@@ -172,7 +184,11 @@ export default function SettingsPage() {
     await syncCtx.refreshLastSync();
     setSyncing(false);
     if (result.success) {
-      setSyncMessage(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
+      if (result.skipped) {
+        setSyncMessage("Cloud sync is off — data stays on this device.");
+      } else {
+        setSyncMessage(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
+      }
     } else {
       setSyncMessage(result.error ?? "Sync failed");
     }
@@ -180,12 +196,12 @@ export default function SettingsPage() {
   };
 
   const handleExport = async () => {
-    const keys = await getAllDayKeys();
+    const keys = await getAllDayKeys(scope);
     const days: Record<string, unknown> = {};
     for (const k of keys) {
-      days[k] = await getDayData(k);
+      days[k] = await getDayData(scope, k);
     }
-    const s = await getSettingsFromDb();
+    const s = await getSettingsFromDb(scope);
     const blob = new Blob(
       [JSON.stringify({ days, settings: s, exportedAt: new Date().toISOString() }, null, 2)],
       { type: "application/json" }
@@ -215,12 +231,12 @@ export default function SettingsPage() {
         if (days) {
           for (const [k, v] of Object.entries(days)) {
             if (/^\d{4}-\d{2}-\d{2}$/.test(k) && v && typeof v === "object") {
-              await setDayData(k, v as Parameters<typeof setDayData>[1]);
+              await setDayData(scope, k, v as Parameters<typeof setDayData>[2]);
             }
           }
         }
         if (importedSettings) {
-          await saveSettingsToDb(importedSettings);
+          await saveSettingsToDb(scope, importedSettings);
           setSettings(importedSettings);
         }
         setSaved(true);
@@ -243,6 +259,204 @@ export default function SettingsPage() {
         {saved && (
           <p className="text-sm text-accent py-2">Settings saved.</p>
         )}
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Privacy &amp; data
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card space-y-3">
+            <p className="text-sm text-gray-800 leading-relaxed">
+              Your data is stored on your device for privacy. Personal health data stays local to
+              this device unless you turn on optional cloud sync (see below).
+            </p>
+            <Link
+              href="/privacy"
+              className="inline-flex min-h-[44px] items-center text-sm font-medium text-accent hover:underline"
+            >
+              How we handle privacy →
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Profile
+          </h2>
+          <div className="space-y-3 rounded-2xl border border-border bg-white p-4 shadow-card">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-800">Display name</span>
+              <input
+                type="text"
+                value={settings.profile?.displayName ?? ""}
+                onChange={(e) =>
+                  update({
+                    profile: {
+                      ...settings.profile,
+                      displayName: e.target.value || null,
+                      email: settings.profile?.email ?? user?.email ?? null,
+                    },
+                  })
+                }
+                placeholder="Your name"
+                className="mt-1 block w-full rounded-xl border border-border px-4 py-3 text-gray-800 placeholder:text-muted focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none min-h-[44px]"
+              />
+            </label>
+            <div>
+              <span className="text-sm font-medium text-gray-800">Email</span>
+              <p className="mt-1 text-sm text-muted break-all">
+                {user?.email ?? settings.profile?.email ?? "—"}
+              </p>
+              <p className="text-xs text-muted mt-1">
+                From your sign-in. We don&apos;t use it to store health data in the cloud.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Modules
+          </h2>
+          <div className="space-y-2 rounded-2xl border border-border bg-white p-4 shadow-card">
+            <p className="text-sm text-muted mb-3">
+              Choose what appears in your app. You can change this anytime.
+            </p>
+            {(Object.keys(MODULE_REGISTRY) as AppModuleId[]).map((id) => {
+              const def = MODULE_REGISTRY[id];
+              const enabled = (settings.enabledModules ?? defaultEnabledModules()).includes(id);
+              return (
+                <label
+                  key={id}
+                  className="flex items-start justify-between gap-4 min-h-[44px] py-2 border-b border-border/60 last:border-0"
+                >
+                  <span>
+                    <span className="font-medium text-gray-800 block">{def.label}</span>
+                    <span className="text-xs text-muted">{def.shortDescription}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={() => toggleModule(id)}
+                    className="w-5 h-5 mt-0.5 rounded border-gray-300 text-accent focus:ring-accent/30 shrink-0"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            Your medications (scaffold)
+          </h2>
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-card space-y-3">
+            <p className="text-sm text-muted">
+              Add your own medications here. The Today screen still uses the legacy layout until we
+              migrate the UI—this list is the forward-looking model.
+            </p>
+            {(settings.userMedications ?? []).map((med) => (
+              <div
+                key={med.id}
+                className="p-3 rounded-xl border border-border bg-surface/50 space-y-2"
+              >
+                <div className="flex justify-between gap-2">
+                  <input
+                    type="text"
+                    value={med.name}
+                    onChange={(e) =>
+                      update({
+                        userMedications: (settings.userMedications ?? []).map((m) =>
+                          m.id === med.id ? { ...m, name: e.target.value } : m
+                        ),
+                      })
+                    }
+                    className="flex-1 font-medium text-gray-800 bg-transparent border-0 border-b border-transparent hover:border-border focus:border-accent focus:outline-none px-0 py-1 min-h-[44px]"
+                    placeholder="Name"
+                  />
+                  <label className="flex items-center gap-2 text-sm shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={med.active}
+                      onChange={(e) =>
+                        update({
+                          userMedications: (settings.userMedications ?? []).map((m) =>
+                            m.id === med.id ? { ...m, active: e.target.checked } : m
+                          ),
+                        })
+                      }
+                    />
+                    Active
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex-1 min-w-[120px]">
+                    <span className="text-xs text-muted">Dosage / notes</span>
+                    <input
+                      type="text"
+                      value={med.dosageNotes ?? ""}
+                      onChange={(e) =>
+                        update({
+                          userMedications: (settings.userMedications ?? []).map((m) =>
+                            m.id === med.id ? { ...m, dosageNotes: e.target.value } : m
+                          ),
+                        })
+                      }
+                      className="mt-0.5 block w-full rounded-lg border border-border px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                  <label className="flex-1 min-w-[120px]">
+                    <span className="text-xs text-muted">Frequency</span>
+                    <input
+                      type="text"
+                      value={med.frequency ?? ""}
+                      onChange={(e) =>
+                        update({
+                          userMedications: (settings.userMedications ?? []).map((m) =>
+                            m.id === med.id ? { ...m, frequency: e.target.value } : m
+                          ),
+                        })
+                      }
+                      placeholder="e.g. daily, with food"
+                      className="mt-0.5 block w-full rounded-lg border border-border px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    update({
+                      userMedications: (settings.userMedications ?? []).filter((m) => m.id !== med.id),
+                    })
+                  }
+                  className="text-sm text-muted hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const id = crypto.randomUUID();
+                update({
+                  userMedications: [
+                    ...(settings.userMedications ?? []),
+                    {
+                      id,
+                      name: "New medication",
+                      scheduleTimes: ["09:00"],
+                      dosesPerDay: 1,
+                      active: true,
+                    },
+                  ],
+                });
+              }}
+              className="w-full px-4 py-3 rounded-xl text-sm font-medium bg-accent-soft text-accent hover:bg-accent-soft/80 border border-accent/30 min-h-[44px]"
+            >
+              + Add medication
+            </button>
+          </div>
+        </section>
 
         <section className="mb-10">
           <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
@@ -687,18 +901,20 @@ export default function SettingsPage() {
           </h2>
           <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
             <p className="text-sm text-muted mb-3">
-              {user
-                ? "Sync your data across devices when signed in."
-                : "Sign in to sync across devices."}
+              {!CAN_SYNC_HEALTH_DATA_TO_CLOUD
+                ? "Optional cloud sync of health data is turned off in this build. Your data stays on this device."
+                : user
+                  ? "When enabled, you can sync your tracker data across devices while signed in."
+                  : "Sign in to use optional cloud sync."}
             </p>
-            {user && (
+            {user && CAN_SYNC_HEALTH_DATA_TO_CLOUD && (
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <button
                     type="button"
                     onClick={handleSyncNow}
                     disabled={syncing}
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-accent text-white hover:bg-accent/90 disabled:opacity-50 min-h-[44px]"
                   >
                     {syncing ? "Syncing…" : "Sync now"}
                   </button>
@@ -712,6 +928,11 @@ export default function SettingsPage() {
                   </p>
                 )}
               </>
+            )}
+            {user && !CAN_SYNC_HEALTH_DATA_TO_CLOUD && (
+              <p className="text-xs text-muted">
+                Last device sync time isn&apos;t tracked while cloud sync is off.
+              </p>
             )}
             <div className="flex gap-2 mt-3 pt-3 border-t border-border">
               <button
