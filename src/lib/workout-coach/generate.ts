@@ -6,6 +6,11 @@ import type {
   WorkoutCoachSavedExercise,
   WorkoutCoachVariant,
 } from "@/types";
+import {
+  createCooldownBlock,
+  createDefaultWarmupBlock,
+  newWorkoutBlockId,
+} from "./block-factory";
 import { todayHasBootcampLike, hasStrengthPelotonToday } from "./peloton";
 import { resolveEquipment, type IntensityMode } from "./equipment";
 import {
@@ -30,6 +35,8 @@ import {
 const ROUND_PUSH = 3;
 const ROUND_CORE = 3;
 
+export { createDefaultWarmupBlock, STRENGTH_WARMUP_MINUTES } from "./block-factory";
+
 export interface GenerateContext {
   today: DayData;
   yesterday: DayData | null;
@@ -47,10 +54,6 @@ export interface GenerateWorkoutResult {
   rotation: WorkoutCoachRotation;
 }
 
-function id(): string {
-  return `w-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
 function minutesForBlocks(
   short: boolean,
   low: boolean,
@@ -60,24 +63,6 @@ function minutesForBlocks(
   if (low) return { b1: 10, b2: 8, b3: 8 };
   if (short) return { b1: 9, b2: 9, b3: 8 };
   return { b1: 11, b2: 10, b3: 9 };
-}
-
-/** Included in total workout length for every strength session. */
-export const STRENGTH_WARMUP_MINUTES = 4;
-
-export function createDefaultWarmupBlock(): WorkoutCoachBlock {
-  return {
-    id: id(),
-    kind: "warmup",
-    title: "Warm-up (3–4 min)",
-    minutes: STRENGTH_WARMUP_MINUTES,
-    exercises: [
-      { name: "Bodyweight squats", detail: "10 reps" },
-      { name: "Push-ups", detail: "10 reps" },
-      { name: "Plank", detail: "20s" },
-      { name: "Arm circles", detail: "10 each way" },
-    ],
-  };
 }
 
 function buildWarmupBlock(): WorkoutCoachBlock {
@@ -101,28 +86,34 @@ function standardStrengthBlocks(
   return [
     buildWarmupBlock(),
     {
-      id: id(),
+      id: newWorkoutBlockId(),
       kind: "amrap",
+      blockType: "amrap_timed",
       title: amrapTitle,
       minutes: m.b1,
+      durationSeconds: m.b1 * 60,
       exercises: buildBlock1Pair(b1, w),
       coaching: recoveryMode ? "Easy pace. No grind." : undefined,
     },
     {
-      id: id(),
+      id: newWorkoutBlockId(),
       kind: "structured_push",
+      blockType: "structured_rounds",
       title: `${ROUND_PUSH} rounds`,
       minutes: m.b2,
       roundTarget: ROUND_PUSH,
+      targetRounds: ROUND_PUSH,
       exercises: buildBlock2(b2, w, low),
       coaching: recoveryMode ? "Light loads. Full rest between sets." : undefined,
     },
     {
-      id: id(),
+      id: newWorkoutBlockId(),
       kind: "core_circuit",
+      blockType: "structured_rounds",
       title: `${ROUND_CORE} rounds`,
       minutes: m.b3,
       roundTarget: ROUND_CORE,
+      targetRounds: ROUND_CORE,
       exercises: buildBlock3(b3, w),
       coaching: recoveryMode ? "Controlled reps." : undefined,
     },
@@ -134,10 +125,12 @@ function ladderBlock(low: boolean): WorkoutCoachBlock[] {
   return [
     buildWarmupBlock(),
     {
-      id: id(),
+      id: newWorkoutBlockId(),
       kind: "kb_ladder",
+      blockType: "amrap_timed",
       title: "24 min AMRAP",
       minutes: 24,
+      durationSeconds: 24 * 60,
       exercises: buildSwingLadderBlock(w),
       coaching: undefined,
     },
@@ -175,21 +168,25 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
 
   if (bootcampToday) {
     const w = resolveEquipment("low");
+    const workoutId = newWorkoutBlockId();
     const workout: GeneratedWorkout = {
-      id: id(),
+      id: workoutId,
       generatedAt: Date.now(),
       variant: "short",
       blocks: [
         buildWarmupBlock(),
         {
-          id: id(),
+          id: newWorkoutBlockId(),
           kind: "core_circuit",
+          blockType: "structured_rounds",
           title: "1 round",
           minutes: 8,
           roundTarget: 1,
+          targetRounds: 1,
           exercises: buildOptionalEasyCore(w),
           coaching: undefined,
         },
+        createCooldownBlock(workoutId),
       ],
     };
     return {
@@ -199,11 +196,12 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
   }
 
   if (useLadder) {
+    const workoutId = newWorkoutBlockId();
     const workout: GeneratedWorkout = {
-      id: id(),
+      id: workoutId,
       generatedAt: Date.now(),
       variant: "ladder",
-      blocks: ladderBlock(low),
+      blocks: [...ladderBlock(low), createCooldownBlock(workoutId)],
       stretchGoal: undefined,
     };
     return {
@@ -222,11 +220,12 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
       ? "short"
       : "standard";
 
-  const blocks = standardStrengthBlocks(short, low, intensity, b1, b2, b3, recoveryMode);
+  const workoutId = newWorkoutBlockId();
+  const blocks = [...standardStrengthBlocks(short, low, intensity, b1, b2, b3, recoveryMode), createCooldownBlock(workoutId)];
   const stretchGoal = undefined;
 
   const workout: GeneratedWorkout = {
-    id: id(),
+    id: workoutId,
     generatedAt: Date.now(),
     variant,
     blocks,

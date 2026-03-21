@@ -12,16 +12,20 @@ export function workoutBlockKindLabel(kind: WorkoutCoachBlockKind): string {
       return "Core circuit";
     case "kb_ladder":
       return "KB ladder";
+    case "cooldown":
+      return "Cooldown";
   }
 }
 
 /** Blocks that use a countdown timer (time-bounded work). */
 export function isTimedAmrapStyleBlock(block: WorkoutCoachBlock): boolean {
+  if (block.blockType === "amrap_timed") return true;
   return block.kind === "amrap" || block.kind === "kb_ladder";
 }
 
 /** Fixed-round strength blocks (not time-tracked in the runner). */
 export function isFixedRoundsBlock(block: WorkoutCoachBlock): boolean {
+  if (block.blockType === "structured_rounds") return true;
   return (
     (block.kind === "structured_push" || block.kind === "core_circuit") &&
     block.roundTarget != null &&

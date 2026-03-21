@@ -72,11 +72,21 @@ export type WorkoutCoachBlockKind =
   | "amrap"
   | "structured_push"
   | "core_circuit"
-  | "kb_ladder";
+  | "kb_ladder"
+  | "cooldown";
+
+/** Live-session behaviour (explicit; preferred over `kind` for runtime). */
+export type WorkoutCoachBlockType =
+  | "warmup_timed"
+  | "amrap_timed"
+  | "structured_rounds"
+  | "cooldown_timed";
 
 export interface WorkoutCoachBlock {
   id: string;
   kind: WorkoutCoachBlockKind;
+  /** Set on generated workouts; inferred for legacy JSON. */
+  blockType?: WorkoutCoachBlockType;
   title: string;
   minutes: number;
   exercises: WorkoutCoachExercise[];
@@ -84,6 +94,76 @@ export interface WorkoutCoachBlock {
   coaching?: string;
   /** Fixed rounds for structured_push / core_circuit (no ranges) */
   roundTarget?: number;
+  /** Countdown duration for timed block types (seconds). */
+  durationSeconds?: number;
+  /** structured_rounds — mirrors roundTarget when present */
+  targetRounds?: number;
+}
+
+/** ---- Workout Coach live session (persisted; survives refresh) ---- */
+
+export type TimedBlockLiveStatus = "not_started" | "active" | "paused" | "completed";
+
+export interface WarmupCooldownTimedLiveState {
+  blockId: string;
+  blockType: "warmup_timed" | "cooldown_timed";
+  status: TimedBlockLiveStatus;
+  remainingSeconds: number;
+  /** When status is active — wall-clock end for refresh-safe countdown */
+  endAtEpochMs?: number | null;
+}
+
+export interface AmrapTimedLiveState {
+  blockId: string;
+  blockType: "amrap_timed";
+  status: TimedBlockLiveStatus;
+  remainingSeconds: number;
+  endAtEpochMs?: number | null;
+}
+
+export type StructuredRoundsLiveStatus =
+  | "not_started"
+  | "active"
+  | "rounds_complete_pending_decision"
+  | "rest_started"
+  | "completed";
+
+export type StructuredExtraRoundState = "unavailable" | "available" | "armed" | "completed";
+
+export interface StructuredRoundsLiveState {
+  blockId: string;
+  blockType: "structured_rounds";
+  status: StructuredRoundsLiveStatus;
+  completedRounds: number;
+  targetRounds: number;
+  extraRoundState: StructuredExtraRoundState;
+}
+
+export type WorkoutCoachBlockLiveState =
+  | WarmupCooldownTimedLiveState
+  | AmrapTimedLiveState
+  | StructuredRoundsLiveState;
+
+export interface WorkoutCoachRestTimer {
+  active: boolean;
+  sourceBlockId: string;
+  remainingSeconds: number;
+  durationSeconds: number;
+  autoStarted: boolean;
+  endAtEpochMs?: number | null;
+}
+
+export type WorkoutCoachLiveWorkoutStatus = "preview" | "in_progress" | "completed";
+
+export interface WorkoutCoachLiveSession {
+  workoutId: string;
+  workoutGeneratedAt: number;
+  sessionStarted: boolean;
+  workoutStatus: WorkoutCoachLiveWorkoutStatus;
+  activeBlockIndex: number;
+  /** Keyed by block id */
+  blockStates: Record<string, WorkoutCoachBlockLiveState>;
+  restTimer: WorkoutCoachRestTimer | null;
 }
 
 export type WorkoutCoachVariant = "standard" | "short" | "low_energy" | "ladder";
@@ -110,6 +190,8 @@ export interface WorkoutCoachPostLog {
 /** Per-day state for the Workout Coach panel */
 export interface WorkoutCoachDayState {
   workout?: GeneratedWorkout | null;
+  /** Persisted live workout runner (timers, rounds, rest). */
+  liveSession?: WorkoutCoachLiveSession | null;
   postLog?: WorkoutCoachPostLog | null;
   /** Inline toggles (no settings screen) */
   preferShort?: boolean;

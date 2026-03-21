@@ -51,6 +51,7 @@ const BY_KIND: Record<WorkoutCoachBlockKind, readonly string[]> = {
   structured_push: PUSH,
   core_circuit: CORE,
   kb_ladder: LADDER,
+  cooldown: GENERIC,
 };
 
 function fillKb(text: string, kbHint: string): string {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DayData, GeneratedWorkout, WorkoutCoachPostLog } from "@/types";
+import type { AmrapTimedLiveState, DayData, WorkoutCoachPostLog, WarmupCooldownTimedLiveState } from "@/types";
 import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
 import { computeFlags, decideWorkout } from "@/lib/workout-coach/decision-engine";
@@ -18,9 +18,25 @@ import {
   STATUS_CARD_STYLES,
   statusIconEmoji,
 } from "@/components/workout-coach/coach-status-ui";
-import { CollapsedBlock, WorkoutBlockRunner } from "@/components/workout-coach/workout-block-runner";
+import {
+  CollapsedBlock,
+  LiveBlockRouter,
+  RestTimerDock,
+} from "@/components/workout-coach/live-blocks";
 import { WorkoutBlocksPreview } from "@/components/workout-coach/WorkoutBlocksPreview";
-import { createDefaultWarmupBlock } from "@/lib/workout-coach/generate";
+import { normalizeWorkoutBlocks } from "@/lib/workout-coach/normalize-blocks";
+import {
+  completeAmrapWorkAndStartRest,
+  completeRestTimer,
+  completeWarmupCooldownWork,
+  createInitialLiveSession,
+  deriveRestRemainingSeconds,
+  deriveTimedRemainingSeconds,
+  isLiveSessionStale,
+  mergeLiveSessionBlockStates,
+  setSessionStarted,
+} from "@/lib/workout-coach/live-session";
+import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 type UpdateFn = (prev: DayData) => DayData;
 
@@ -40,9 +56,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const [yesterdayData, setYesterdayData] = useState<DayData | null>(null);
   const [last30Days, setLast30Days] = useState<{ dateKey: string; data: DayData }[]>([]);
   const [showStrengthInstead, setShowStrengthInstead] = useState(false);
-  const [activeBlockIndex, setActiveBlockIndex] = useState(0);
-  const [workoutSessionEnded, setWorkoutSessionEnded] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
 
   const last7Days = useMemo(() => last30Days.slice(0, 7), [last30Days]);
 
@@ -95,22 +108,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     setShowStrengthInstead(false);
   }, [decision.outcome, dateKey]);
 
-  useEffect(() => {
-    if (workout?.generatedAt != null) {
-      setActiveBlockIndex(0);
-      setWorkoutSessionEnded(false);
-      setSessionStarted(false);
-    }
-  }, [workout?.generatedAt]);
-
-  useEffect(() => {
-    if (!workout) {
-      setSessionStarted(false);
-      setActiveBlockIndex(0);
-      setWorkoutSessionEnded(false);
-    }
-  }, [workout]);
-
   const lastType = lastWorkoutTypeLabel(data);
 
   const canTrainStrength =
@@ -131,6 +128,100 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     },
     [update]
   );
+
+  /** Persist / merge live session when workout exists but session is missing, stale, or blocks were normalized. */
+  useEffect(() => {
+    if (!workout) return;
+    update((prev) => {
+      const c = prev.workoutCoach ?? {};
+      const w = c.workout;
+      if (!w || w.id !== workout.id) return prev;
+      const blocks = normalizeWorkoutBlocks(w.blocks, { id: w.id, generatedAt: w.generatedAt });
+      let session = c.liveSession;
+      if (!session || isLiveSessionStale(session, w)) {
+        return {
+          ...prev,
+          workoutCoach: { ...c, liveSession: createInitialLiveSession(w) },
+        };
+      }
+      const merged = mergeLiveSessionBlockStates(session, blocks);
+      if (merged !== session) {
+        return { ...prev, workoutCoach: { ...c, liveSession: merged } };
+      }
+      return prev;
+    });
+  }, [workout?.id, workout?.generatedAt, update, workout]);
+
+  /** Drive timed blocks + rest to completion (wall-clock safe). */
+  useEffect(() => {
+    if (!workout) return;
+    const id = setInterval(() => {
+      update((prev) => {
+        const c = prev.workoutCoach ?? {};
+        const w = c.workout;
+        const session = c.liveSession;
+        if (!w || !session?.sessionStarted) return prev;
+
+        const blocks = normalizeWorkoutBlocks(w.blocks, { id: w.id, generatedAt: w.generatedAt });
+
+        if (session.restTimer?.active) {
+          if (session.restTimer.endAtEpochMs != null) {
+            const rem = deriveRestRemainingSeconds(session.restTimer);
+            if (rem <= 0) {
+              return {
+                ...prev,
+                workoutCoach: {
+                  ...c,
+                  liveSession: completeRestTimer(session, blocks),
+                },
+              };
+            }
+          }
+          return prev;
+        }
+
+        const idx = session.activeBlockIndex;
+        const block = blocks[idx];
+        if (!block) return prev;
+
+        const live = session.blockStates[block.id];
+        if (!live || live.blockType === "structured_rounds") return prev;
+        if (live.status !== "active") return prev;
+
+        const rem =
+          live.blockType === "amrap_timed"
+            ? deriveTimedRemainingSeconds(live as AmrapTimedLiveState)
+            : deriveTimedRemainingSeconds(live as WarmupCooldownTimedLiveState);
+
+        if (rem > 0) return prev;
+
+        signalTimerEnd();
+
+        if (live.blockType === "amrap_timed") {
+          return {
+            ...prev,
+            workoutCoach: {
+              ...c,
+              liveSession: completeAmrapWorkAndStartRest(session, block.id),
+            },
+          };
+        }
+
+        if (live.blockType === "warmup_timed" || live.blockType === "cooldown_timed") {
+          return {
+            ...prev,
+            workoutCoach: {
+              ...c,
+              liveSession: completeWarmupCooldownWork(session, block.id, blocks),
+            },
+          };
+        }
+
+        return prev;
+      });
+    }, 250);
+    return () => clearInterval(id);
+  }, [workout?.id, workout?.generatedAt, update, workout]);
 
   const toggleSwim = useCallback(() => {
     const manualSwimId = `manual-swim-${dateKey}`;
@@ -188,6 +279,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     setCoach({
       workout: result.workout,
       postLog: null,
+      liveSession: createInitialLiveSession(result.workout),
       ...(recoveryMode ? { preferShort: true, preferLowEnergy: true } : {}),
     });
     await setSettings({ ...settings, workoutCoachRotation: result.rotation });
@@ -213,12 +305,20 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
 
   const statusTone = getCoachStatusTone(decision, coach.preferLowEnergy ?? false);
 
-  /** Strength workouts always include warm-up; older saved plans may omit it — prepend for display. */
   const blocksForSession = useMemo(() => {
     if (!workout) return [];
-    if (workout.blocks[0]?.kind === "warmup") return workout.blocks;
-    return [createDefaultWarmupBlock(), ...workout.blocks];
+    return normalizeWorkoutBlocks(workout.blocks, { id: workout.id, generatedAt: workout.generatedAt });
   }, [workout]);
+
+  const liveSession = useMemo(() => {
+    if (!workout) return null;
+    if (!isLiveSessionStale(coach.liveSession, workout)) return coach.liveSession!;
+    return createInitialLiveSession(workout);
+  }, [workout, coach.liveSession]);
+
+  const sessionStarted = liveSession?.sessionStarted ?? false;
+  const workoutSessionEnded = liveSession?.workoutStatus === "completed";
+  const activeBlockIndex = liveSession?.activeBlockIndex ?? 0;
 
   const workoutTotalMin = useMemo(
     () => blocksForSession.reduce((sum, b) => sum + b.minutes, 0),
@@ -234,27 +334,18 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       : "pb-[calc(30rem+env(safe-area-inset-bottom))]"
     : "pb-10";
 
-  const handleBlockFinished = () => {
-    if (!workout) return;
-    if (activeBlockIndex < blocksForSession.length - 1) {
-      setActiveBlockIndex((i) => i + 1);
-    } else {
-      setWorkoutSessionEnded(true);
-    }
-  };
-
   const handleSaveWorkout = () => {
-    setCoach({ workout: null, postLog: {} });
-    setWorkoutSessionEnded(false);
-    setActiveBlockIndex(0);
-    setSessionStarted(false);
+    setCoach({ workout: null, postLog: {}, liveSession: null });
   };
 
   const handleDiscardWorkout = () => {
-    setCoach({ workout: null, postLog: null });
-    setWorkoutSessionEnded(false);
-    setActiveBlockIndex(0);
-    setSessionStarted(false);
+    setCoach({ workout: null, postLog: null, liveSession: null });
+  };
+
+  const handleBeginSession = () => {
+    if (!workout) return;
+    const base = coach.liveSession ?? createInitialLiveSession(workout);
+    setCoach({ liveSession: setSessionStarted(base, true) });
   };
 
   return (
@@ -368,7 +459,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             <WorkoutBlocksPreview
               blocks={blocksForSession}
               totalMinutes={workoutTotalMin}
-              onBegin={() => setSessionStarted(true)}
+              onBegin={handleBeginSession}
             />
           )}
           {!workoutSessionEnded && sessionStarted && (
@@ -400,22 +491,41 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
           )}
           {!workoutSessionEnded &&
             sessionStarted &&
+            liveSession &&
             blocksForSession.map((block, idx) => {
               if (idx < activeBlockIndex) {
                 return <CollapsedBlock key={block.id} title={block.title} />;
               }
-              if (idx === activeBlockIndex) {
+              if (idx > activeBlockIndex) return null;
+              if (
+                liveSession.restTimer?.active &&
+                liveSession.restTimer.sourceBlockId === block.id &&
+                idx === activeBlockIndex
+              ) {
                 return (
-                  <WorkoutBlockRunner
-                    key={block.id}
-                    block={block}
-                    index={idx}
-                    total={blocksForSession.length}
-                    onBlockFinished={handleBlockFinished}
-                  />
+                  <div key={block.id} className="space-y-3">
+                    <CollapsedBlock title={block.title} />
+                    <RestTimerDock
+                      rest={liveSession.restTimer}
+                      session={liveSession}
+                      onSession={(next) => setCoach({ liveSession: next })}
+                    />
+                  </div>
                 );
               }
-              return null;
+              const live = liveSession.blockStates[block.id];
+              if (!live) return null;
+              return (
+                <LiveBlockRouter
+                  key={block.id}
+                  block={block}
+                  index={idx}
+                  total={blocksForSession.length}
+                  live={live}
+                  session={liveSession}
+                  onSession={(next) => setCoach({ liveSession: next })}
+                />
+              );
             })}
         </section>
       )}
