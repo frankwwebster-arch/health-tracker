@@ -4,7 +4,7 @@ export function newWorkoutBlockId(): string {
   return `w-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Included in total workout length for every strength session. */
+/** Warm-up / cool-down target length (minutes). Use 3–4 min; default 4. */
 export const STRENGTH_WARMUP_MINUTES = 4;
 export const STRENGTH_WARMUP_SECONDS = STRENGTH_WARMUP_MINUTES * 60;
 
@@ -22,8 +22,10 @@ export function createDefaultWarmupBlock(): WorkoutCoachBlock {
     exercises: [
       { name: "Bodyweight squats", detail: "10 reps" },
       { name: "Push-ups", detail: "10 reps" },
-      { name: "Plank", detail: "20s" },
-      { name: "Arm circles", detail: "10 each way" },
+      { name: "Plank", detail: "20s hold" },
+      { name: "Arm circles", detail: "shoulder mobility — 10 each way" },
+      { name: "Hip hinges", detail: "10 reps" },
+      { name: "World's greatest stretch", detail: "3 each side" },
     ],
   };
 }
@@ -38,9 +40,11 @@ export function createCooldownBlock(workoutId: string): WorkoutCoachBlock {
     minutes: COOLDOWN_DEFAULT_MINUTES,
     durationSeconds: COOLDOWN_DEFAULT_SECONDS,
     exercises: [
-      { name: "Easy movement", detail: "walk or gentle flow" },
-      { name: "Stretch", detail: "focus on trained areas" },
-      { name: "Breathing", detail: "slow exhales" },
+      { name: "Hamstring stretch", detail: "30s each leg" },
+      { name: "Hip flexor stretch", detail: "30s each side" },
+      { name: "Chest opener", detail: "30s" },
+      { name: "Spinal rotation", detail: "30s each side" },
+      { name: "Child's pose", detail: "45s — slow breaths" },
     ],
   };
 }

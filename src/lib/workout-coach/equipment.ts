@@ -1,6 +1,6 @@
 /**
- * User equipment (canonical KB/DB) and resolved loads for normal vs low-intensity days.
- * KB: 24, 20, 16, 12, 8 kg · DB pairs: 15, 12.5, 10, 7 kg
+ * User equipment (canonical KB/DB) for normal vs low-intensity days.
+ * Rules: suitcase carries always 24kg; shoulder press minimum 10kg pair (never lower).
  */
 
 export type IntensityMode = "normal" | "low";
@@ -30,11 +30,11 @@ export function resolveEquipment(mode: IntensityMode): ResolvedEquipment {
       kbSwing: "20kg",
       kbGoblet: "16kg",
       kbRow: "20kg",
-      kbCarry: "20kg",
+      kbCarry: "24kg",
       kbRdl: "20kg",
       kbThruster: "16kg",
       dbBenchPair: "10kg pair",
-      dbShoulderPair: "7kg pair",
+      dbShoulderPair: "10kg pair",
       dbDeadBug: "10kg",
       dbLegRaise: "3kg",
       swingLadderKb: "20kg",

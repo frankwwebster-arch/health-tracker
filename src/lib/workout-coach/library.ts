@@ -93,7 +93,7 @@ export function buildBlock2(
   const benchParts = [
     w.dbBenchPair,
     "8–10 reps",
-    "3–4 structured sets — not AMRAP",
+    "3 sets — not AMRAP",
   ];
   if (!low) benchParts.push("optional top set: 15kg pair when fresh");
   const bench = ex("Dumbbell bench press", benchParts);
@@ -135,12 +135,8 @@ export type Block3PatternId = (typeof BLOCK3_PATTERN_IDS)[number];
 export function buildBlock3(patternId: Block3PatternId, w: ResolvedEquipment): WorkoutCoachExercise[] {
   const deadbug = ex("Dead bug pullovers", [w.dbDeadBug, "8 reps each side", "ribs down"]);
   const legRaises = ex("Bench leg raises", [w.dbLegRaise + " (optional)", "6–8 reps", "slow, no rush"]);
-  const carry = ex("Suitcase carries", [w.kbCarry, "1 length each side per round", "anti-rotation"]);
-  const rkc = ex("RKC plank", [
-    "15–20s hold",
-    "use Quick Timer (15–20s)",
-    "high tension, short duration",
-  ]);
+  const carry = ex("Suitcase carries", ["24kg", "1 length each side per round", "anti-rotation"]);
+  const rkc = ex("RKC plank", ["15–20s hold", "high tension"]);
 
   switch (patternId) {
     case "staple_carry_deadbug_raises":

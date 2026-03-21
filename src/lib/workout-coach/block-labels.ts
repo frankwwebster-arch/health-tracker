@@ -46,11 +46,39 @@ export function isTimedCountdownBlock(block: WorkoutCoachBlock): boolean {
   );
 }
 
-/** Heuristic: structured block includes a timed hold (plank, etc.) — quick timer presets are relevant. */
-export function blockHasHoldLikeExercise(block: WorkoutCoachBlock): boolean {
-  return block.exercises.some((ex) =>
-    /\b(hold|plank|bridge|iso)\b/i.test(`${ex.name} ${ex.detail}`)
-  );
+/** Preset seconds allowed in the quick-timer dock (must match QuickTimers PRESETS). */
+export const QUICK_TIMER_PRESET_SECONDS = [15, 20, 30, 45, 60] as const;
+
+/**
+ * Seconds from block copy that map to quick timers (e.g. 20s plank → [20]).
+ * Only values in QUICK_TIMER_PRESET_SECONDS are returned.
+ */
+export function extractQuickTimerPresetsFromBlock(block: WorkoutCoachBlock): number[] {
+  const text = block.exercises.map((e) => `${e.name} ${e.detail}`).join(" ");
+  const found = new Set<number>();
+  const allowed = new Set<number>(QUICK_TIMER_PRESET_SECONDS);
+
+  const rangeRe = /(\d{1,2})\s*[–-]\s*(\d{1,2})\s*s\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = rangeRe.exec(text)) !== null) {
+    const a = parseInt(m[1]!, 10);
+    const b = parseInt(m[2]!, 10);
+    if (allowed.has(a)) found.add(a);
+    if (allowed.has(b)) found.add(b);
+  }
+
+  const singleRe = /\b(\d{1,2})\s*s\b/gi;
+  while ((m = singleRe.exec(text)) !== null) {
+    const n = parseInt(m[1]!, 10);
+    if (allowed.has(n)) found.add(n);
+  }
+
+  return Array.from(found).sort((a, b) => a - b);
+}
+
+/** AMRAP / KB ladder — main workout timer in the block; no quick preset strip. */
+export function isAmrapOrKbLadderBlock(block: WorkoutCoachBlock): boolean {
+  return block.kind === "amrap" || block.kind === "kb_ladder";
 }
 
 /** Fixed-round strength blocks (not time-tracked in the runner). */

@@ -6,11 +6,9 @@ import type { WorkoutCoachBlockKind } from "@/types";
  */
 
 const AMRAP: string[] = [
-  "One more full round of the circuit.",
   "+10 KB swings — crisp hinges.",
   "+5 goblet squats — wedge, depth you own.",
   "+8 one-arm rows per side — slow negative.",
-  "Add 2 min to the AMRAP clock — same moves.",
   "One heavier set: pick one exercise, +2 reps.",
   "Farmer carry: 40 steps with {kb} (or best you have).",
 ];
@@ -60,9 +58,10 @@ function fillKb(text: string, kbHint: string): string {
 
 /**
  * Next suggestion for this block kind. Pass previous text to avoid immediate repeat when possible.
+ * (Extra Round UI is only for structured_rounds blocks in the live runner.)
  */
-/** Random line for the "Extra Push" button after a block. */
-export function nextExtraPushSuggestion(
+/** Random line for optional finisher copy (not the structured Extra Round control). */
+export function nextExtraRoundSuggestion(
   kind: WorkoutCoachBlockKind,
   opts?: { avoid?: string; kbHint?: string }
 ): string {
@@ -75,3 +74,6 @@ export function nextExtraPushSuggestion(
   const kb = opts?.kbHint ?? "your KB";
   return fillKb(line, kb);
 }
+
+/** @deprecated Use `nextExtraRoundSuggestion`. */
+export const nextExtraPushSuggestion = nextExtraRoundSuggestion;

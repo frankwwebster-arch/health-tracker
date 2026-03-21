@@ -52,7 +52,7 @@ export const AMRAP_LOWER_PULL: WorkoutCoachExercise[] = [
 export const STRUCTURED_PUSH: WorkoutCoachExercise[] = [
   {
     name: "DB bench press",
-    detail: "{dbBench} · 8–10 reps · 3–4 sets",
+    detail: "{dbBench} · 8–10 reps · 3 sets",
   },
   {
     name: "Shoulder press",
@@ -77,7 +77,7 @@ export const CORE_CIRCUIT: WorkoutCoachExercise[] = [
   { name: "Bench leg raises", detail: "3kg · 12 reps · slow" },
   {
     name: "Suitcase carries",
-    detail: "{kb} each side · 30–40 steps each",
+    detail: "24kg each side · 30–40 steps each",
   },
   {
     name: "Pallof press",
@@ -99,9 +99,9 @@ export const OPTIONAL_CORE_LIGHT: WorkoutCoachExercise[] = [
   },
 ];
 
-/** For UI hints (e.g. stretch suggestions). */
-export function kbWeightLabel(low: boolean): string {
-  return low ? "20kg" : "24kg";
+/** For UI hints (e.g. stretch suggestions). Carries / swing context: always 24kg. */
+export function kbWeightLabel(_low: boolean): string {
+  return "24kg";
 }
 
 function kgForLow(low: boolean): { kb: string; squat: string; dbBench: string; dbPress: string; pullover: string } {
@@ -110,7 +110,7 @@ function kgForLow(low: boolean): { kb: string; squat: string; dbBench: string; d
         kb: "20kg",
         squat: "16kg",
         dbBench: "10kg",
-        dbPress: "8kg",
+        dbPress: "10kg",
         pullover: "10kg",
       }
     : {

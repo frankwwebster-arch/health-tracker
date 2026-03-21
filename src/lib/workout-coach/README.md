@@ -19,7 +19,7 @@
 | **`generate.ts`** | Session types: standard/short/low, swing-ladder conditioning, bootcamp optional core. |
 | **`decision-engine.ts`** | **Coach decision**: whether to train, bootcamp vs strength vs rest, hard rules + weekly balance + recovery. **Peloton rides** (cycling) count toward **2/week** suggested cardio; more rides or bootcamps stay optional. |
 | **`training-streak.ts`** | **`consecutive_training_days`** — calendar streak of days with **strength, bootcamp, golf, or swim** (manual `swimToday`, Peloton swim heuristic, or logged strength/bootcamp). Ride-only days do **not** extend the streak. |
-| **`stretch-suggestions.ts`** | Lines for the **Extra Push** button after each block. |
+| **`stretch-suggestions.ts`** | Optional finisher copy (not the structured **Extra Round** control). |
 | **`exercise-catalog.ts`** | Legacy shuffle pools (optional); main path is **`library.ts`**. |
 
 ## Equipment & weights

@@ -38,10 +38,10 @@ import {
   setSessionStarted,
 } from "@/lib/workout-coach/live-session";
 import {
-  blockHasHoldLikeExercise,
+  extractQuickTimerPresetsFromBlock,
   fixedRoundsBlockHeader,
+  isAmrapOrKbLadderBlock,
   isFixedRoundsBlock,
-  isTimedCountdownBlock,
   timedBlockDisplayTitle,
 } from "@/lib/workout-coach/block-labels";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
@@ -328,7 +328,14 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const workoutSessionEnded = liveSession?.workoutStatus === "completed";
   const activeBlockIndex = liveSession?.activeBlockIndex ?? 0;
 
-  /** During live work: hide preset timers on countdown blocks; show only when structured + hold-like exercise. */
+  /** Live: quick timers only when block copy lists matching seconds (e.g. 20s plank); never on AMRAP/KB ladder. */
+  const quickTimerPresetsForBar = useMemo(() => {
+    if (!sessionStarted) return undefined;
+    const block = blocksForSession[activeBlockIndex];
+    if (!block) return undefined;
+    return extractQuickTimerPresetsFromBlock(block);
+  }, [sessionStarted, blocksForSession, activeBlockIndex]);
+
   const showQuickTimersInDock = useMemo(() => {
     if (!workout) return true;
     if (workoutSessionEnded) return false;
@@ -336,9 +343,8 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     if (liveSession?.restTimer?.active) return false;
     const block = blocksForSession[activeBlockIndex];
     if (!block) return false;
-    if (isTimedCountdownBlock(block)) return false;
-    if (isFixedRoundsBlock(block)) return blockHasHoldLikeExercise(block);
-    return false;
+    if (isAmrapOrKbLadderBlock(block)) return false;
+    return extractQuickTimerPresetsFromBlock(block).length > 0;
   }, [
     workout,
     workoutSessionEnded,
@@ -698,7 +704,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                   Apply coach toggles
                 </button>
               )}
-            <QuickTimersBar visible={showQuickTimersInDock} />
+            <QuickTimersBar visible={showQuickTimersInDock} presets={quickTimerPresetsForBar} />
           </div>
         </div>
       )}

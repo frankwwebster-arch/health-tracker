@@ -3,20 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
-const PRESETS = [15, 20, 30, 45, 60] as const;
+import { QUICK_TIMER_PRESET_SECONDS } from "@/lib/workout-coach/block-labels";
+
+const PRESETS = [...QUICK_TIMER_PRESET_SECONDS];
 
 export type QuickTimersBarProps = {
   /** Extra classes for the outer wrapper (e.g. padding) */
   className?: string;
   /** When false, hide entirely (e.g. AMRAP active — timer is in the block). */
   visible?: boolean;
+  /** If set, only these preset buttons (subset of 15–60s). If undefined, show all presets. */
+  presets?: number[];
 };
 
 /**
  * Timer presets + countdown — no fixed positioning.
  * Parent should place this in the thumb zone (fixed bottom dock).
  */
-export function QuickTimersBar({ className = "", visible = true }: QuickTimersBarProps) {
+export function QuickTimersBar({
+  className = "",
+  visible = true,
+  presets: presetsFilter,
+}: QuickTimersBarProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [activePreset, setActivePreset] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -49,13 +57,20 @@ export function QuickTimersBar({ className = "", visible = true }: QuickTimersBa
 
   if (!visible) return null;
 
+  const presetButtons =
+    presetsFilter == null
+      ? PRESETS
+      : PRESETS.filter((s) => presetsFilter.includes(s));
+
+  if (presetButtons.length === 0) return null;
+
   return (
     <div className={`touch-manipulation ${className}`}>
       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
         Timer
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {PRESETS.map((s) => {
+        {presetButtons.map((s) => {
           const isActive = activePreset === s && secondsLeft != null && secondsLeft > 0;
           return (
             <button
