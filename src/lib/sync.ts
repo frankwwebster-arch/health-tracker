@@ -42,7 +42,11 @@ function isEmptyDay(data: DayData): boolean {
     d.sentimentMorning == null &&
     d.sentimentMidday == null &&
     d.sentimentEvening == null &&
-    Object.keys(d.customMedsTaken ?? {}).length === 0
+    Object.keys(d.customMedsTaken ?? {}).length === 0 &&
+    !d.workoutCoach?.workout &&
+    !d.workoutCoach?.postLog &&
+    !d.workoutCoach?.preferShort &&
+    !d.workoutCoach?.preferLowEnergy
   );
 }
 

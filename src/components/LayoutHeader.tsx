@@ -16,6 +16,12 @@ export function LayoutHeader({ title }: { title: string }) {
             Today
           </Link>
           <Link
+            href="/coach"
+            className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
+          >
+            Coach
+          </Link>
+          <Link
             href="/dashboard"
             className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
           >

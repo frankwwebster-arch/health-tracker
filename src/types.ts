@@ -57,6 +57,60 @@ export interface DayData {
   sentimentMidday: number | null;
   sentimentEvening: number | null;
   customMedsTaken: Record<string, MedicationEntry>; // id -> { taken, takenAt }
+  /** Workout Coach: generated session + post-workout log (syncs with day JSON) */
+  workoutCoach?: WorkoutCoachDayState;
+}
+
+/** Single exercise line in a generated block */
+export interface WorkoutCoachExercise {
+  name: string;
+  detail: string;
+}
+
+export type WorkoutCoachBlockKind =
+  | "amrap"
+  | "structured_push"
+  | "core_circuit"
+  | "kb_ladder";
+
+export interface WorkoutCoachBlock {
+  id: string;
+  kind: WorkoutCoachBlockKind;
+  title: string;
+  minutes: number;
+  exercises: WorkoutCoachExercise[];
+  /** e.g. rest guidance */
+  coaching?: string;
+}
+
+export type WorkoutCoachVariant = "standard" | "short" | "low_energy" | "ladder";
+
+export interface GeneratedWorkout {
+  id: string;
+  generatedAt: number;
+  variant: WorkoutCoachVariant;
+  blocks: WorkoutCoachBlock[];
+  stretchGoal?: string;
+}
+
+export interface WorkoutCoachPostLog {
+  roundsAmrap?: number | null;
+  topSet?: boolean | null;
+  notes?: string;
+  garminCalories?: number | null;
+  garminAvgHr?: number | null;
+  garminDurationMin?: number | null;
+  mood?: "good" | "flat" | "tired" | null;
+  energy?: "high" | "ok" | "low" | null;
+}
+
+/** Per-day state for the Workout Coach panel */
+export interface WorkoutCoachDayState {
+  workout?: GeneratedWorkout | null;
+  postLog?: WorkoutCoachPostLog | null;
+  /** Inline toggles (no settings screen) */
+  preferShort?: boolean;
+  preferLowEnergy?: boolean;
 }
 
 export interface ReminderLastNotified {

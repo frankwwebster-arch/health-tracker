@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { DayData } from "@/types";
 import { DoneWithUndoAction } from "./DoneWithUndoAction";
 
@@ -60,9 +61,17 @@ export function MovementSection({ data, update, dateKey }: Props) {
 
   return (
     <section className="mb-10">
-      <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
-        Movement
-      </h2>
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+          Movement
+        </h2>
+        <Link
+          href="/coach"
+          className="text-sm font-semibold text-accent hover:underline min-h-[44px] inline-flex items-center"
+        >
+          Workout Coach →
+        </Link>
+      </div>
       <div className="space-y-3">
         <div
           className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
