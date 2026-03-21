@@ -16,7 +16,7 @@ export function createDefaultWarmupBlock(): WorkoutCoachBlock {
     id: newWorkoutBlockId(),
     kind: "warmup",
     blockType: "warmup_timed",
-    title: "Warm-up (3–4 min)",
+    title: "Warm-up — 4 min",
     minutes: STRENGTH_WARMUP_MINUTES,
     durationSeconds: STRENGTH_WARMUP_SECONDS,
     exercises: [
@@ -34,7 +34,7 @@ export function createCooldownBlock(workoutId: string): WorkoutCoachBlock {
     id: `cooldown-${workoutId}`,
     kind: "cooldown",
     blockType: "cooldown_timed",
-    title: "Cooldown (3–4 min)",
+    title: "Cool-down — 4 min",
     minutes: COOLDOWN_DEFAULT_MINUTES,
     durationSeconds: COOLDOWN_DEFAULT_SECONDS,
     exercises: [

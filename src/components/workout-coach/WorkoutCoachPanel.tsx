@@ -37,7 +37,13 @@ import {
   mergeLiveSessionBlockStates,
   setSessionStarted,
 } from "@/lib/workout-coach/live-session";
-import { fixedRoundsBlockHeader } from "@/lib/workout-coach/block-labels";
+import {
+  blockHasHoldLikeExercise,
+  fixedRoundsBlockHeader,
+  isFixedRoundsBlock,
+  isTimedCountdownBlock,
+  timedBlockDisplayTitle,
+} from "@/lib/workout-coach/block-labels";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 type UpdateFn = (prev: DayData) => DayData;
@@ -322,6 +328,26 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const workoutSessionEnded = liveSession?.workoutStatus === "completed";
   const activeBlockIndex = liveSession?.activeBlockIndex ?? 0;
 
+  /** During live work: hide preset timers on countdown blocks; show only when structured + hold-like exercise. */
+  const showQuickTimersInDock = useMemo(() => {
+    if (!workout) return true;
+    if (workoutSessionEnded) return false;
+    if (!sessionStarted) return true;
+    if (liveSession?.restTimer?.active) return false;
+    const block = blocksForSession[activeBlockIndex];
+    if (!block) return false;
+    if (isTimedCountdownBlock(block)) return false;
+    if (isFixedRoundsBlock(block)) return blockHasHoldLikeExercise(block);
+    return false;
+  }, [
+    workout,
+    workoutSessionEnded,
+    sessionStarted,
+    liveSession?.restTimer?.active,
+    blocksForSession,
+    activeBlockIndex,
+  ]);
+
   const workoutTotalMin = useMemo(
     () => blocksForSession.reduce((sum, b) => sum + b.minutes, 0),
     [blocksForSession]
@@ -329,11 +355,19 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   /** Hide Generate / toggles whenever a workout exists (preview or in progress; timers stay). */
   const minimalThumbDock = workout != null;
 
+  /** Hide fixed dock when it would be empty (live AMRAP / rest / completion — timers live elsewhere). */
+  const showThumbDock =
+    isToday &&
+    (!minimalThumbDock ||
+      (workoutSessionEnded === false && (!sessionStarted || showQuickTimersInDock)));
+
   /** Scroll padding — smaller thumb dock when workout exists (timers only). */
   const scrollPad = isToday
-    ? minimalThumbDock
-      ? "pb-[calc(14rem+env(safe-area-inset-bottom))]"
-      : "pb-[calc(30rem+env(safe-area-inset-bottom))]"
+    ? showThumbDock
+      ? minimalThumbDock
+        ? "pb-[calc(14rem+env(safe-area-inset-bottom))]"
+        : "pb-[calc(30rem+env(safe-area-inset-bottom))]"
+      : "pb-10"
     : "pb-10";
 
   const handleSaveWorkout = () => {
@@ -364,14 +398,10 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   };
 
   function collapsedTitleForBlock(block: (typeof blocksForSession)[number], idx: number): string {
-    if (
-      block.blockType === "structured_rounds" ||
-      block.kind === "structured_push" ||
-      block.kind === "core_circuit"
-    ) {
+    if (isFixedRoundsBlock(block)) {
       return fixedRoundsBlockHeader(block, idx);
     }
-    return block.title;
+    return timedBlockDisplayTitle(block, idx);
   }
 
   return (
@@ -506,19 +536,19 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             </div>
           )}
           {workoutSessionEnded && (
-            <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 space-y-4 text-center">
-              <p className="text-xl font-extrabold text-emerald-900">Workout complete ✅</p>
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-5 space-y-3 text-center">
+              <p className="text-lg font-extrabold text-emerald-900">Done for today ✅</p>
               <button
                 type="button"
                 onClick={handleSaveWorkout}
-                className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-white text-lg font-extrabold shadow-lg"
+                className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-white text-lg font-extrabold shadow-md"
               >
                 Save workout
               </button>
               <button
                 type="button"
                 onClick={handleDiscardWorkout}
-                className="w-full min-h-[48px] rounded-2xl border-2 border-red-300 text-red-700 font-bold text-sm"
+                className="w-full min-h-[40px] rounded-xl text-sm font-semibold text-red-600 underline underline-offset-2"
               >
                 Discard workout
               </button>
@@ -581,7 +611,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       </div>
 
       {/* Thumb zone: fixed dock — Generate, quick toggles, rest timers (lower ~60% of interaction) */}
-      {isToday && (
+      {showThumbDock && (
         <div
           className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-slate-200 bg-white/98 backdrop-blur-md shadow-[0_-12px_40px_rgba(15,23,42,0.1)] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
           role="region"
@@ -668,7 +698,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                   Apply coach toggles
                 </button>
               )}
-            <QuickTimersBar />
+            <QuickTimersBar visible={showQuickTimersInDock} />
           </div>
         </div>
       )}

@@ -8,13 +8,15 @@ const PRESETS = [15, 20, 30, 45, 60] as const;
 export type QuickTimersBarProps = {
   /** Extra classes for the outer wrapper (e.g. padding) */
   className?: string;
+  /** When false, hide entirely (e.g. AMRAP active — timer is in the block). */
+  visible?: boolean;
 };
 
 /**
  * Timer presets + countdown — no fixed positioning.
  * Parent should place this in the thumb zone (fixed bottom dock).
  */
-export function QuickTimersBar({ className = "" }: QuickTimersBarProps) {
+export function QuickTimersBar({ className = "", visible = true }: QuickTimersBarProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [activePreset, setActivePreset] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,6 +46,8 @@ export function QuickTimersBar({ className = "" }: QuickTimersBarProps) {
       });
     }, 1000);
   };
+
+  if (!visible) return null;
 
   return (
     <div className={`touch-manipulation ${className}`}>

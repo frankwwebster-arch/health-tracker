@@ -186,7 +186,7 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (flags.golfToday) {
     return {
       outcome: "no_workout",
-      headline: "Golf day ✅",
+      headline: "Golf day",
     };
   }
 
@@ -221,14 +221,14 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
     if (flags.sleepQuality === "poor") {
       return {
         outcome: "strength",
-        headline: "Suggested: Light strength",
+        headline: "Suggested: Strength",
         preferShort: true,
         preferLowEnergy: true,
       };
     }
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength",
+      headline: "Suggested: Strength",
       preferShort: true,
       preferLowEnergy: true,
     };
@@ -240,7 +240,7 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
     return {
       outcome: "consecutive_training_warning",
       streak: flags.consecutiveTrainingDays,
-      headline: "Rest day recommended ⚠️",
+      headline: "Rest day recommended",
       preferShort: true,
       preferLowEnergy: true,
       recoveryMode: true,
@@ -251,7 +251,7 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (preferLowEnergyToggle) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength",
+      headline: "Suggested: Strength",
       preferShort: true,
       preferLowEnergy: true,
     };
@@ -331,7 +331,7 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (flags.sleepQuality === "poor" && (flags.trainedYesterday || scoreLight >= 3)) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength",
+      headline: "Suggested: Strength",
       preferShort: true,
       preferLowEnergy: true,
     };
@@ -340,7 +340,7 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (scoreLight >= 3) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength",
+      headline: "Suggested: Strength",
       preferShort: true,
       preferLowEnergy: true,
     };

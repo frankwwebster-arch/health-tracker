@@ -2,22 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkoutCoachBlock } from "@/types";
-import { fixedRoundsBlockHeader, isFixedRoundsBlock } from "@/lib/workout-coach/block-labels";
+import {
+  fixedRoundsBlockHeader,
+  formatExerciseLineConcise,
+  isFixedRoundsBlock,
+  timedBlockDisplayTitle,
+} from "@/lib/workout-coach/block-labels";
 
 function previewTitle(block: WorkoutCoachBlock, index: number): string {
   if (isFixedRoundsBlock(block)) {
     return fixedRoundsBlockHeader(block, index);
   }
-  return block.title;
-}
-
-function PreviewMeta({ block }: { block: WorkoutCoachBlock }) {
-  if (isFixedRoundsBlock(block)) {
-    return null;
-  }
-  return (
-    <p className="text-sm text-slate-600 mb-3 tabular-nums break-words">{block.minutes} min</p>
-  );
+  return timedBlockDisplayTitle(block, index);
 }
 
 export function WorkoutBlocksPreview({
@@ -57,45 +53,61 @@ export function WorkoutBlocksPreview({
           ~{totalMinutes} min total
         </span>
       </div>
-      <p className="text-xs text-slate-600 leading-snug break-words">
-        Swipe left / right to see every block before you start.
-      </p>
-
       <div className="w-full min-w-0 max-w-full overflow-hidden">
         <div
           ref={scrollerRef}
           className="flex w-full max-w-full min-w-0 overflow-x-auto snap-x snap-mandatory gap-0 scroll-smooth pb-2 touch-pan-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {blocks.map((block, idx) => (
+          {blocks.map((block, idx) => {
+            const structured = isFixedRoundsBlock(block);
+            return (
             <div
               key={block.id}
               className="w-full min-w-0 max-w-full shrink-0 grow-0 basis-full snap-center box-border px-1"
             >
-              <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm min-h-[200px] max-w-full min-w-0 overflow-hidden">
-                <p className="text-[11px] font-bold text-blue-600 uppercase mb-2 break-words">
-                  {block.kind === "warmup"
-                    ? `Warm-up · ${idx + 1}/${blocks.length}`
-                    : `Block ${idx + 1} of ${blocks.length}`}
-                </p>
-                <h3 className="text-lg font-extrabold text-slate-900 mb-2 break-words hyphens-auto [overflow-wrap:anywhere]">
-                  {previewTitle(block, idx)}
-                </h3>
-                <PreviewMeta block={block} />
-                <ul className="space-y-2 min-w-0">
-                  {block.exercises.slice(0, 8).map((ex, i) => (
-                    <li key={i} className="text-sm leading-snug min-w-0 break-words [overflow-wrap:anywhere]">
-                      <span className="font-semibold text-slate-900">{ex.name}</span>
-                      <span className="text-slate-600"> — {ex.detail}</span>
-                    </li>
-                  ))}
-                  {block.exercises.length > 8 && (
-                    <li className="text-xs text-slate-500 break-words">+ more…</li>
-                  )}
-                </ul>
+              <div
+                className={`rounded-2xl border-2 p-1 shadow-sm min-h-[180px] max-w-full min-w-0 overflow-hidden ${
+                  structured
+                    ? "border-emerald-200 bg-emerald-50/40"
+                    : "border-sky-200 bg-sky-50/50"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      structured ? "text-emerald-900" : "text-sky-800"
+                    }`}
+                  >
+                    {structured ? "Rounds" : "Time"}
+                  </span>
+                  <span className="text-[10px] text-slate-500 tabular-nums">
+                    {idx + 1}/{blocks.length}
+                  </span>
+                </div>
+                <div
+                  className={`rounded-xl p-3 min-h-0 ${
+                    structured ? "bg-white border border-emerald-100" : "bg-white border border-sky-100"
+                  }`}
+                >
+                  <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words hyphens-auto [overflow-wrap:anywhere] leading-snug">
+                    {previewTitle(block, idx)}
+                  </h3>
+                  <ul className="space-y-1.5 min-w-0">
+                    {block.exercises.slice(0, 8).map((ex, i) => (
+                      <li key={i} className="text-sm leading-snug min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
+                        {formatExerciseLineConcise(ex)}
+                      </li>
+                    ))}
+                    {block.exercises.length > 8 && (
+                      <li className="text-xs text-slate-500 break-words">+ more…</li>
+                    )}
+                  </ul>
+                </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
