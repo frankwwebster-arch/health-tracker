@@ -65,7 +65,7 @@ export default function CoachPage() {
       <LayoutHeader title="Workout Coach" />
       <main className="max-w-md mx-auto px-3 sm:px-4 pt-4 pb-4">
         <p className="text-xs text-slate-500 mb-4 leading-snug">
-          Status on top · actions & timers at the bottom (thumb zone).
+          Status on top · Begin / Save / End / timers stay in the bottom thumb zone.
         </p>
         <WorkoutCoachPanel data={data} update={update} dateKey={todayKey} />
       </main>

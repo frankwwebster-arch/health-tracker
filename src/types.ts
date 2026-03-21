@@ -164,6 +164,11 @@ export interface WorkoutCoachLiveSession {
   /** Keyed by block id */
   blockStates: Record<string, WorkoutCoachBlockLiveState>;
   restTimer: WorkoutCoachRestTimer | null;
+  /**
+   * Wall-clock start when user taps Begin workout (hidden session timer for save / health pane).
+   * Persisted so refresh keeps elapsed meaningful.
+   */
+  sessionStartEpochMs?: number | null;
 }
 
 export type WorkoutCoachVariant = "standard" | "short" | "low_energy" | "ladder";

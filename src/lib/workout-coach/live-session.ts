@@ -87,6 +87,7 @@ export function createInitialLiveSession(workout: GeneratedWorkout): WorkoutCoac
     activeBlockIndex: 0,
     blockStates,
     restTimer: null,
+    sessionStartEpochMs: null,
   };
 }
 
@@ -219,11 +220,31 @@ export function structuredCompleteExtraRoundAndStartRest(
 }
 
 export function setSessionStarted(session: WorkoutCoachLiveSession, started: boolean): WorkoutCoachLiveSession {
+  const now = Date.now();
   return {
     ...session,
     sessionStarted: started,
     workoutStatus: started ? "in_progress" : session.workoutStatus,
+    sessionStartEpochMs:
+      started && (session.sessionStartEpochMs == null || session.sessionStartEpochMs <= 0)
+        ? now
+        : session.sessionStartEpochMs ?? null,
   };
+}
+
+/**
+ * Minutes to store on Save (wall clock from Begin → Save). Falls back to planned block total if missing.
+ */
+export function computeSavedWorkoutMinutes(
+  session: WorkoutCoachLiveSession | null | undefined,
+  fallbackPlannedTotalMinutes: number
+): number {
+  const start = session?.sessionStartEpochMs;
+  if (start == null || start <= 0) {
+    return Math.max(1, Math.round(fallbackPlannedTotalMinutes));
+  }
+  const sec = Math.floor((Date.now() - start) / 1000);
+  return Math.max(1, Math.round(sec / 60));
 }
 
 export function patchTimedState(

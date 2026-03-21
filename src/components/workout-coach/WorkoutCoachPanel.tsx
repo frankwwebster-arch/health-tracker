@@ -13,6 +13,7 @@ import {
 import { QuickTimersBar } from "./QuickTimers";
 import { getDayData } from "@/db";
 import { useSettings } from "@/hooks/useTodayData";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import {
   getCoachStatusTone,
   STATUS_CARD_STYLES,
@@ -29,6 +30,7 @@ import {
   completeAmrapWorkAndStartRest,
   completeRestTimer,
   completeWarmupCooldownWork,
+  computeSavedWorkoutMinutes,
   createInitialLiveSession,
   defaultLiveStateForBlock,
   deriveRestRemainingSeconds,
@@ -328,6 +330,10 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const workoutSessionEnded = liveSession?.workoutStatus === "completed";
   const activeBlockIndex = liveSession?.activeBlockIndex ?? 0;
 
+  const keepScreenAwake =
+    Boolean(workout && liveSession?.sessionStarted && !workoutSessionEnded);
+  useWakeLock(keepScreenAwake);
+
   /** Live: quick timers only when block copy lists matching seconds (e.g. 20s plank); never on AMRAP/KB ladder. */
   const quickTimerPresetsForBar = useMemo(() => {
     if (!sessionStarted) return undefined;
@@ -361,24 +367,27 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   /** Hide Generate / toggles whenever a workout exists (preview or in progress; timers stay). */
   const minimalThumbDock = workout != null;
 
-  /** Hide fixed dock when it would be empty (live AMRAP / rest / completion — timers live elsewhere). */
-  const showThumbDock =
-    isToday &&
-    (!minimalThumbDock ||
-      (workoutSessionEnded === false && (!sessionStarted || showQuickTimersInDock)));
+  /** Fixed thumb dock for all coach actions on today (Begin / End / timers / Save / Generate). */
+  const showThumbDock = isToday;
 
-  /** Scroll padding — smaller thumb dock when workout exists (timers only). */
+  /** Scroll padding — room for thumb-zone dock (live workout + completion + generate). */
   const scrollPad = isToday
-    ? showThumbDock
-      ? minimalThumbDock
-        ? "pb-[calc(14rem+env(safe-area-inset-bottom))]"
-        : "pb-[calc(30rem+env(safe-area-inset-bottom))]"
-      : "pb-10"
+    ? "pb-[calc(20rem+env(safe-area-inset-bottom))]"
     : "pb-10";
 
-  const handleSaveWorkout = () => {
-    setCoach({ workout: null, postLog: {}, liveSession: null });
-  };
+  const handleSaveWorkout = useCallback(() => {
+    const minutes = computeSavedWorkoutMinutes(coach.liveSession, workoutTotalMin);
+    update((prev) => ({
+      ...prev,
+      workoutMinutes: minutes,
+      workoutCoach: {
+        ...prev.workoutCoach,
+        workout: null,
+        postLog: { ...prev.workoutCoach?.postLog, garminDurationMin: minutes },
+        liveSession: null,
+      },
+    }));
+  }, [coach.liveSession, workoutTotalMin, update]);
 
   const handleDiscardWorkout = () => {
     setCoach({ workout: null, postLog: null, liveSession: null });
@@ -518,46 +527,24 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       {workout && (
         <section className="space-y-4">
           {!workoutSessionEnded && !sessionStarted && (
-            <WorkoutBlocksPreview
-              blocks={blocksForSession}
-              totalMinutes={workoutTotalMin}
-              onBegin={handleBeginSession}
-            />
+            <WorkoutBlocksPreview blocks={blocksForSession} totalMinutes={workoutTotalMin} />
           )}
           {!workoutSessionEnded && sessionStarted && (
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Workout
               </h2>
-              <div className="flex items-center gap-3 ml-auto">
-                <span className="text-sm font-bold text-slate-700 tabular-nums">{workoutTotalMin} min</span>
-                <button
-                  type="button"
-                  onClick={handleEndWorkout}
-                  className="text-xs font-bold text-red-600 underline underline-offset-2 min-h-[44px] px-1"
-                >
-                  End workout
-                </button>
-              </div>
+              <span className="text-sm font-bold text-slate-700 tabular-nums ml-auto">
+                Plan {workoutTotalMin} min
+              </span>
             </div>
           )}
           {workoutSessionEnded && (
-            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-5 space-y-3 text-center">
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-5 text-center">
               <p className="text-lg font-extrabold text-emerald-900">Done for today ✅</p>
-              <button
-                type="button"
-                onClick={handleSaveWorkout}
-                className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-white text-lg font-extrabold shadow-md"
-              >
-                Save workout
-              </button>
-              <button
-                type="button"
-                onClick={handleDiscardWorkout}
-                className="w-full min-h-[40px] rounded-xl text-sm font-semibold text-red-600 underline underline-offset-2"
-              >
-                Discard workout
-              </button>
+              <p className="text-sm text-emerald-800/90 mt-2">
+                Save or discard below — your choice is remembered for the day.
+              </p>
             </div>
           )}
           {!workoutSessionEnded &&
@@ -616,19 +603,61 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       )}
       </div>
 
-      {/* Thumb zone: fixed dock — Generate, quick toggles, rest timers (lower ~60% of interaction) */}
+      {/* Thumb zone: primary actions only (mobile-first, one-handed) */}
       {showThumbDock && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-slate-200 bg-white/98 backdrop-blur-md shadow-[0_-12px_40px_rgba(15,23,42,0.1)] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-slate-200 bg-white/98 backdrop-blur-md shadow-[0_-12px_40px_rgba(15,23,42,0.1)]"
           role="region"
           aria-label="Workout actions"
         >
-          <div className="max-w-md mx-auto px-3 pt-3 space-y-3">
+          <div className="max-w-md mx-auto px-3 pt-3 space-y-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {workout && workoutSessionEnded && (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleDiscardWorkout}
+                  className="w-full min-h-[48px] rounded-full border-2 border-red-200 bg-red-50/90 text-red-800 text-sm font-bold active:scale-[0.99]"
+                >
+                  Discard workout
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveWorkout}
+                  className="w-full min-h-[56px] rounded-full bg-emerald-600 text-white text-lg font-extrabold shadow-md shadow-emerald-600/20 active:scale-[0.99]"
+                >
+                  Save workout
+                </button>
+              </div>
+            )}
+            {workout && !workoutSessionEnded && sessionStarted && (
+              <div className="space-y-3">
+                <QuickTimersBar visible={showQuickTimersInDock} presets={quickTimerPresetsForBar} />
+                <button
+                  type="button"
+                  onClick={handleEndWorkout}
+                  className="w-full min-h-[52px] rounded-full border-2 border-red-300 bg-white text-red-700 text-base font-extrabold active:bg-red-50 active:scale-[0.99]"
+                >
+                  End workout
+                </button>
+              </div>
+            )}
+            {workout && !workoutSessionEnded && !sessionStarted && (
+              <div className="space-y-3">
+                <QuickTimersBar visible={true} />
+                <button
+                  type="button"
+                  onClick={handleBeginSession}
+                  className="w-full min-h-[56px] rounded-full bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/25 active:bg-blue-700 active:scale-[0.99]"
+                >
+                  Begin workout
+                </button>
+              </div>
+            )}
             {!minimalThumbDock && canTrainStrength && (
               <button
                 type="button"
                 onClick={handleGenerate}
-                className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/25 active:bg-blue-700 active:scale-[0.99] transition-transform"
+                className="w-full min-h-[56px] rounded-full bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/25 active:bg-blue-700 active:scale-[0.99] transition-transform"
               >
                 Generate workout
               </button>
@@ -699,12 +728,12 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 <button
                   type="button"
                   onClick={handleApplySuggestion}
-                  className="w-full min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
+                  className="w-full min-h-[48px] rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
                 >
                   Apply coach toggles
                 </button>
               )}
-            <QuickTimersBar visible={showQuickTimersInDock} presets={quickTimerPresetsForBar} />
+            {!workout && <QuickTimersBar visible={true} />}
           </div>
         </div>
       )}

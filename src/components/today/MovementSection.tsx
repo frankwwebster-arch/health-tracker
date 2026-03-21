@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DayData } from "@/types";
 import { DoneWithUndoAction } from "./DoneWithUndoAction";
@@ -18,9 +18,15 @@ interface Props {
 export function MovementSection({ data, update, dateKey }: Props) {
   const [pelotonSyncing, setPelotonSyncing] = useState(false);
   const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
+  const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState(false);
   const isPreset = data.workoutMinutes != null && PRESET_MINS.includes(data.workoutMinutes as (typeof PRESET_MINS)[number]);
   const isCustom = data.workoutMinutes != null && !isPreset;
   const hasSessions = (data.workoutSessions ?? []).length > 0;
+  const hasSavedWorkout = data.workoutMinutes != null || hasSessions;
+
+  useEffect(() => {
+    if (!hasSavedWorkout) setPendingDeleteWorkout(false);
+  }, [hasSavedWorkout]);
 
   const handleSyncFromPeloton = async () => {
     setPelotonSyncing(true);
@@ -162,15 +168,41 @@ export function MovementSection({ data, update, dateKey }: Props) {
             </div>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {data.workoutMinutes != null && (
-              <button
-                type="button"
-                onClick={() => update((prev) => ({ ...prev, workoutMinutes: null, workoutSessions: undefined }))}
-                className="text-sm text-muted hover:text-gray-800"
-              >
-                Clear
-              </button>
-            )}
+            {hasSavedWorkout &&
+              (pendingDeleteWorkout ? (
+                <div className="flex flex-wrap items-center gap-2 w-full">
+                  <span className="text-sm text-amber-800 font-medium">Remove this workout from the day?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      update((prev) => ({
+                        ...prev,
+                        workoutMinutes: null,
+                        workoutSessions: undefined,
+                      }));
+                      setPendingDeleteWorkout(false);
+                    }}
+                    className="min-h-[44px] px-4 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.99]"
+                  >
+                    Confirm delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteWorkout(false)}
+                    className="min-h-[44px] px-4 rounded-xl text-sm font-medium border border-border bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPendingDeleteWorkout(true)}
+                  className="min-h-[44px] px-3 rounded-xl text-sm font-medium text-red-700 hover:text-red-900 hover:bg-red-50 border border-red-200"
+                >
+                  Delete workout
+                </button>
+              ))}
             <button
               type="button"
               onClick={handleSyncFromPeloton}

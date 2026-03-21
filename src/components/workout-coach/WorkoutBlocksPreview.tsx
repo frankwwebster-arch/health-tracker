@@ -19,11 +19,9 @@ function previewTitle(block: WorkoutCoachBlock, index: number): string {
 export function WorkoutBlocksPreview({
   blocks,
   totalMinutes,
-  onBegin,
 }: {
   blocks: WorkoutCoachBlock[];
   totalMinutes: number;
-  onBegin: () => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -53,6 +51,10 @@ export function WorkoutBlocksPreview({
           {totalMinutes} min total
         </span>
       </div>
+      <p className="text-xs text-slate-600 text-center">
+        Swipe blocks · then use <span className="font-semibold">Begin workout</span> in the bar below
+      </p>
+
       <div className="w-full min-w-0 max-w-full overflow-hidden">
         <div
           ref={scrollerRef}
@@ -62,50 +64,53 @@ export function WorkoutBlocksPreview({
           {blocks.map((block, idx) => {
             const structured = isFixedRoundsBlock(block);
             return (
-            <div
-              key={block.id}
-              className="w-full min-w-0 max-w-full shrink-0 grow-0 basis-full snap-center box-border px-1"
-            >
               <div
-                className={`rounded-2xl border-2 p-1 shadow-sm min-h-[180px] max-w-full min-w-0 overflow-hidden ${
-                  structured
-                    ? "border-emerald-200 bg-emerald-50/40"
-                    : "border-sky-200 bg-sky-50/50"
-                }`}
+                key={block.id}
+                className="w-full min-w-0 max-w-full shrink-0 grow-0 basis-full snap-center box-border px-1"
               >
-                <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider ${
-                      structured ? "text-emerald-900" : "text-sky-800"
-                    }`}
-                  >
-                    {structured ? "Rounds" : "Time"}
-                  </span>
-                  <span className="text-[10px] text-slate-500 tabular-nums">
-                    {idx + 1}/{blocks.length}
-                  </span>
-                </div>
                 <div
-                  className={`rounded-xl p-3 min-h-0 ${
-                    structured ? "bg-white border border-emerald-100" : "bg-white border border-sky-100"
+                  className={`rounded-2xl border-2 p-1 shadow-sm min-h-[180px] max-w-full min-w-0 overflow-hidden ${
+                    structured
+                      ? "border-emerald-200 bg-emerald-50/40"
+                      : "border-sky-200 bg-sky-50/50"
                   }`}
                 >
-                  <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words hyphens-auto [overflow-wrap:anywhere] leading-snug">
-                    {previewTitle(block, idx)}
-                  </h3>
-                  <ul className="space-y-1.5 min-w-0">
-                    {block.exercises.slice(0, 8).map((ex, i) => (
-                      <li key={i} className="text-sm leading-snug min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
-                        {formatExerciseLineConcise(ex)}
-                      </li>
-                    ))}
-                    {block.exercises.length > 8 && (
-                      <li className="text-xs text-slate-500 break-words">+ more…</li>
-                    )}
-                  </ul>
+                  <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider ${
+                        structured ? "text-emerald-900" : "text-sky-800"
+                      }`}
+                    >
+                      {structured ? "Rounds" : "Time"}
+                    </span>
+                    <span className="text-[10px] text-slate-500 tabular-nums">
+                      {idx + 1}/{blocks.length}
+                    </span>
+                  </div>
+                  <div
+                    className={`rounded-xl p-3 min-h-0 ${
+                      structured ? "bg-white border border-emerald-100" : "bg-white border border-sky-100"
+                    }`}
+                  >
+                    <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words hyphens-auto [overflow-wrap:anywhere] leading-snug">
+                      {previewTitle(block, idx)}
+                    </h3>
+                    <ul className="space-y-1.5 min-w-0">
+                      {block.exercises.slice(0, 8).map((ex, i) => (
+                        <li
+                          key={i}
+                          className="text-sm leading-snug min-w-0 break-words [overflow-wrap:anywhere] text-slate-800"
+                        >
+                          {formatExerciseLineConcise(ex)}
+                        </li>
+                      ))}
+                      {block.exercises.length > 8 && (
+                        <li className="text-xs text-slate-500 break-words">+ more…</li>
+                      )}
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
             );
           })}
         </div>
@@ -122,14 +127,6 @@ export function WorkoutBlocksPreview({
           />
         ))}
       </div>
-
-      <button
-        type="button"
-        onClick={onBegin}
-        className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold shadow-lg active:scale-[0.99]"
-      >
-        Begin workout
-      </button>
     </div>
   );
 }
