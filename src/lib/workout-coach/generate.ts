@@ -62,12 +62,15 @@ function minutesForBlocks(
   return { b1: 11, b2: 10, b3: 9 };
 }
 
-function buildWarmupBlock(): WorkoutCoachBlock {
+/** Included in total workout length for every strength session. */
+export const STRENGTH_WARMUP_MINUTES = 4;
+
+export function createDefaultWarmupBlock(): WorkoutCoachBlock {
   return {
     id: id(),
     kind: "warmup",
-    title: "Warm-up (4 min)",
-    minutes: 4,
+    title: "Warm-up (3–4 min)",
+    minutes: STRENGTH_WARMUP_MINUTES,
     exercises: [
       { name: "Bodyweight squats", detail: "10 reps" },
       { name: "Push-ups", detail: "10 reps" },
@@ -75,6 +78,10 @@ function buildWarmupBlock(): WorkoutCoachBlock {
       { name: "Arm circles", detail: "10 each way" },
     ],
   };
+}
+
+function buildWarmupBlock(): WorkoutCoachBlock {
+  return createDefaultWarmupBlock();
 }
 
 function standardStrengthBlocks(

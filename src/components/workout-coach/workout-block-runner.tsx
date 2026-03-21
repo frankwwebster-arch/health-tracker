@@ -90,7 +90,7 @@ function WarmupBlock({
           onClick={handleStart}
           className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold active:scale-[0.99]"
         >
-          Start workout
+          Start warm-up
         </button>
       )}
       {done && <p className="text-center text-lg font-black text-emerald-700 py-2">Done</p>}

@@ -19,6 +19,8 @@ import {
   statusIconEmoji,
 } from "@/components/workout-coach/coach-status-ui";
 import { CollapsedBlock, WorkoutBlockRunner } from "@/components/workout-coach/workout-block-runner";
+import { WorkoutBlocksPreview } from "@/components/workout-coach/WorkoutBlocksPreview";
+import { createDefaultWarmupBlock } from "@/lib/workout-coach/generate";
 
 type UpdateFn = (prev: DayData) => DayData;
 
@@ -40,6 +42,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const [showStrengthInstead, setShowStrengthInstead] = useState(false);
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [workoutSessionEnded, setWorkoutSessionEnded] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   const last7Days = useMemo(() => last30Days.slice(0, 7), [last30Days]);
 
@@ -96,8 +99,17 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     if (workout?.generatedAt != null) {
       setActiveBlockIndex(0);
       setWorkoutSessionEnded(false);
+      setSessionStarted(false);
     }
   }, [workout?.generatedAt]);
+
+  useEffect(() => {
+    if (!workout) {
+      setSessionStarted(false);
+      setActiveBlockIndex(0);
+      setWorkoutSessionEnded(false);
+    }
+  }, [workout]);
 
   const lastType = lastWorkoutTypeLabel(data);
 
@@ -200,10 +212,20 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   };
 
   const statusTone = getCoachStatusTone(decision, coach.preferLowEnergy ?? false);
-  const workoutTotalMin =
-    workout != null ? workout.blocks.reduce((sum, b) => sum + b.minutes, 0) : 0;
-  /** Hide Generate / toggles whenever a session is on-screen (timers stay). */
-  const minimalThumbDock = workout != null && canTrainStrength;
+
+  /** Strength workouts always include warm-up; older saved plans may omit it — prepend for display. */
+  const blocksForSession = useMemo(() => {
+    if (!workout) return [];
+    if (workout.blocks[0]?.kind === "warmup") return workout.blocks;
+    return [createDefaultWarmupBlock(), ...workout.blocks];
+  }, [workout]);
+
+  const workoutTotalMin = useMemo(
+    () => blocksForSession.reduce((sum, b) => sum + b.minutes, 0),
+    [blocksForSession]
+  );
+  /** Hide Generate / toggles whenever a workout exists (preview or in progress; timers stay). */
+  const minimalThumbDock = workout != null;
 
   /** Scroll padding — smaller thumb dock when workout exists (timers only). */
   const scrollPad = isToday
@@ -214,7 +236,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
 
   const handleBlockFinished = () => {
     if (!workout) return;
-    if (activeBlockIndex < workout.blocks.length - 1) {
+    if (activeBlockIndex < blocksForSession.length - 1) {
       setActiveBlockIndex((i) => i + 1);
     } else {
       setWorkoutSessionEnded(true);
@@ -225,12 +247,14 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     setCoach({ workout: null, postLog: {} });
     setWorkoutSessionEnded(false);
     setActiveBlockIndex(0);
+    setSessionStarted(false);
   };
 
   const handleDiscardWorkout = () => {
     setCoach({ workout: null, postLog: null });
     setWorkoutSessionEnded(false);
     setActiveBlockIndex(0);
+    setSessionStarted(false);
   };
 
   return (
@@ -336,9 +360,16 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
         </details>
       )}
 
-      {workout && canTrainStrength && (
+      {workout && (
         <section className="space-y-4">
-          {!workoutSessionEnded && (
+          {!workoutSessionEnded && !sessionStarted && (
+            <WorkoutBlocksPreview
+              blocks={blocksForSession}
+              totalMinutes={workoutTotalMin}
+              onBegin={() => setSessionStarted(true)}
+            />
+          )}
+          {!workoutSessionEnded && sessionStarted && (
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Workout
@@ -366,7 +397,8 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             </div>
           )}
           {!workoutSessionEnded &&
-            workout.blocks.map((block, idx) => {
+            sessionStarted &&
+            blocksForSession.map((block, idx) => {
               if (idx < activeBlockIndex) {
                 return <CollapsedBlock key={block.id} title={block.title} />;
               }
@@ -376,7 +408,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                     key={block.id}
                     block={block}
                     index={idx}
-                    total={workout.blocks.length}
+                    total={blocksForSession.length}
                     onBlockFinished={handleBlockFinished}
                   />
                 );
