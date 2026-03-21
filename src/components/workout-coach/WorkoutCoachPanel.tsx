@@ -260,7 +260,9 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   return (
     <div className="relative min-h-[100dvh] w-full max-w-md mx-auto touch-manipulation">
       {/* Upper zone: status + read-only context — scrolls; primary taps live in fixed dock */}
-      <div className={`overflow-y-auto overscroll-y-contain px-3 pt-2 space-y-4 ${scrollPad}`}>
+      <div
+        className={`overflow-y-auto overscroll-y-contain px-3 pt-2 space-y-4 min-w-0 max-w-full ${scrollPad}`}
+      >
         {/* 1 — Status only (no actions — thumb zone is the dock) */}
         <section
           className={`sticky top-0 z-20 rounded-2xl border-2 p-4 sm:p-5 ${STATUS_CARD_STYLES[statusTone]} shadow-md`}

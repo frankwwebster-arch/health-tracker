@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { WorkoutCoachBlock } from "@/types";
+import { fixedRoundsBlockHeader } from "@/lib/workout-coach/block-labels";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 function formatMmSs(total: number): string {
@@ -24,9 +25,11 @@ function isStructured(b: WorkoutCoachBlock): boolean {
 
 export function CollapsedBlock({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 flex items-center gap-2 min-h-[52px]">
-      <span className="text-emerald-700 text-xl font-bold">✓</span>
-      <span className="font-bold text-emerald-900">{title}</span>
+    <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 flex items-center gap-2 min-h-[52px] min-w-0 max-w-full">
+      <span className="text-emerald-700 text-xl font-bold shrink-0">✓</span>
+      <span className="font-bold text-emerald-900 min-w-0 break-words [overflow-wrap:anywhere]">
+        {title}
+      </span>
     </div>
   );
 }
@@ -75,10 +78,12 @@ function WarmupBlock({
       <p className="text-[11px] font-bold text-slate-500 uppercase mb-1">
         {index + 1}/{total}
       </p>
-      <h3 className="text-lg font-extrabold text-slate-900 mb-3">{block.title}</h3>
+      <h3 className="text-lg font-extrabold text-slate-900 mb-3 break-words [overflow-wrap:anywhere]">
+        {block.title}
+      </h3>
       <ul className="space-y-2 mb-4">
         {block.exercises.map((ex, i) => (
-          <li key={i} className="text-base">
+          <li key={i} className="text-base min-w-0 break-words [overflow-wrap:anywhere]">
             <span className="font-bold text-slate-900">{ex.name}</span>
             <span className="text-slate-600"> — {ex.detail}</span>
           </li>
@@ -146,10 +151,12 @@ function AmrapBlock({ block, index, total, onBlockFinished }: Props) {
       <p className="text-[11px] font-bold text-slate-500 uppercase mb-1">
         {index + 1}/{total}
       </p>
-      <h3 className="text-lg font-extrabold text-slate-900 mb-3">{block.title}</h3>
+      <h3 className="text-lg font-extrabold text-slate-900 mb-3 break-words [overflow-wrap:anywhere]">
+        {block.title}
+      </h3>
       <ul className="space-y-2 mb-4">
         {block.exercises.map((ex, i) => (
-          <li key={i} className="text-base">
+          <li key={i} className="text-base min-w-0 break-words [overflow-wrap:anywhere]">
             <span className="font-bold text-slate-900">{ex.name}</span>
             <span className="text-slate-600"> — {ex.detail}</span>
           </li>
@@ -215,17 +222,20 @@ function StructuredBlock({ block, index, total, onBlockFinished }: Props) {
     onBlockFinished();
   };
 
-  const showExtra = blockComplete;
   return (
     <div
-      className={`rounded-2xl border-2 p-4 space-y-3 ${
+      className={`rounded-2xl border-2 p-4 space-y-3 min-w-0 max-w-full ${
         blockComplete && !extraMode ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"
       }`}
     >
-      <p className="text-[11px] font-bold text-slate-500 uppercase mb-1">
-        {index + 1}/{total}
-      </p>
-      <h3 className="text-lg font-extrabold text-slate-900">{block.title}</h3>
+      <div className="flex justify-start items-start gap-2 min-w-0">
+        <h3 className="text-lg font-extrabold text-slate-900 flex-1 min-w-0 break-words [overflow-wrap:anywhere]">
+          {fixedRoundsBlockHeader(block, index)}
+        </h3>
+        <span className="text-[11px] font-bold text-slate-400 shrink-0 tabular-nums pt-0.5">
+          {index + 1}/{total}
+        </span>
+      </div>
       {started && !blockComplete && (
         <p className="text-sm font-bold text-slate-700">
           Round {Math.min(roundsCompleted + 1, target)} / {target}
@@ -233,7 +243,7 @@ function StructuredBlock({ block, index, total, onBlockFinished }: Props) {
       )}
       <ul className="space-y-2">
         {block.exercises.map((ex, i) => (
-          <li key={i} className="text-base">
+          <li key={i} className="text-base min-w-0 break-words [overflow-wrap:anywhere]">
             <span className="font-bold text-slate-900">{ex.name}</span>
             <span className="text-slate-600"> — {ex.detail}</span>
           </li>
