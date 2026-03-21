@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { WorkoutCoachExtrasCard } from "@/components/dashboard/WorkoutCoachExtrasCard";
 import { getDayData, getAllDayKeys, getSettings } from "@/db";
 import type { DayData } from "@/types";
 import { getDateKey, getAdjacentDateKey } from "@/types";
@@ -137,6 +138,8 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+
+        <WorkoutCoachExtrasCard />
 
         <div className="space-y-4">
           {statCard(

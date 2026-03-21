@@ -2,118 +2,137 @@ import type {
   DayData,
   GeneratedWorkout,
   WorkoutCoachBlock,
+  WorkoutCoachRotation,
+  WorkoutCoachSavedExercise,
   WorkoutCoachVariant,
 } from "@/types";
 import { todayHasBootcampLike, hasStrengthPelotonToday } from "./peloton";
+import { resolveEquipment, type IntensityMode } from "./equipment";
+import {
+  buildBlock1Pair,
+  buildBlock2,
+  buildBlock3,
+  buildOptionalEasyCore,
+  buildSwingLadderBlock,
+  type Block1PairId,
+  type Block2PatternId,
+  type Block3PatternId,
+} from "./library";
+import {
+  advanceRotationBootcampOptional,
+  advanceRotationLadder,
+  advanceRotationStandard,
+  pickBlock1PairId,
+  pickBlock2PatternId,
+  pickBlock3PatternId,
+} from "./rotation";
 
 export interface GenerateContext {
   today: DayData;
-  /** Previous calendar day data (for "strength yesterday" bias). */
   yesterday: DayData | null;
   preferShort: boolean;
   preferLowEnergy: boolean;
+  /** Fatigue streak override — short, easy, no ladder / no AMRAP grind */
+  recoveryMode?: boolean;
+  savedExercises?: WorkoutCoachSavedExercise[];
+  /** Required — drives rotation memory */
+  rotation: WorkoutCoachRotation;
+}
+
+export interface GenerateWorkoutResult {
+  workout: GeneratedWorkout;
+  rotation: WorkoutCoachRotation;
 }
 
 function id(): string {
   return `w-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function standardBlocks(short: boolean, low: boolean): WorkoutCoachBlock[] {
-  const amrapMin = short ? 8 : low ? 10 : 11;
-  const pushMin = short ? 8 : 10;
-  const coreMin = short ? 8 : low ? 8 : 9;
-  const kb = low ? "20kg" : "24kg";
-  const squat = low ? "16kg" : "20kg";
-
-  const b1: WorkoutCoachBlock = {
-    id: id(),
-    kind: "amrap",
-    title: `Block 1 — AMRAP (${amrapMin} min)`,
-    minutes: amrapMin,
-    exercises: [
-      {
-        name: "Goblet squats",
-        detail: `${squat}. Use a squat wedge. AMRAP with good form.`,
-      },
-      { name: "KB swings", detail: `${kb}. Hinge, not squat.` },
-      {
-        name: "One-arm KB rows",
-        detail: `${kb} each side. Square hips.`,
-      },
-    ],
-    coaching: "Lower + pull. Keep moving; quality over panic pace.",
-  };
-
-  const b2: WorkoutCoachBlock = {
-    id: id(),
-    kind: "structured_push",
-    title: `Block 2 — Structured push (${pushMin} min)`,
-    minutes: pushMin,
-    exercises: [
-      {
-        name: "DB bench press",
-        detail: low ? "10kg · 8 reps · 3–4 sets" : "12.5kg · 8–10 reps · 3–4 sets",
-      },
-      {
-        name: "Shoulder press",
-        detail: low
-          ? "8kg · 8 reps · strict — no tiptoes"
-          : "10kg · 8 reps · strict — no tiptoes",
-      },
-    ],
-    coaching: "Rest 45–60 sec between sets. Controlled reps.",
-  };
-
-  const b3: WorkoutCoachBlock = {
-    id: id(),
-    kind: "core_circuit",
-    title: `Block 3 — Core circuit (${coreMin} min)`,
-    minutes: coreMin,
-    exercises: [
-      {
-        name: "Dead bug pullovers",
-        detail: low ? "10kg · 10 reps" : "12.5kg · 10 reps",
-      },
-      { name: "Bench leg raises", detail: "3kg · 12 reps · slow" },
-      {
-        name: "Suitcase carries",
-        detail: `${kb} each side · 30–40 steps each`,
-      },
-    ],
-    coaching: "2–3 rounds. Core circuit — not AMRAP. Breathe.",
-  };
-
-  return [b1, b2, b3];
+function minutesForBlocks(
+  short: boolean,
+  low: boolean,
+  recoveryMode: boolean
+): { b1: number; b2: number; b3: number } {
+  if (recoveryMode) return { b1: 8, b2: 7, b3: 7 };
+  if (low) return { b1: 10, b2: 8, b3: 8 };
+  if (short) return { b1: 9, b2: 9, b3: 8 };
+  return { b1: 11, b2: 10, b3: 9 };
 }
 
-function ladderBlocks(low: boolean): WorkoutCoachBlock[] {
-  const kb = low ? "20kg" : "24kg";
+function standardStrengthBlocks(
+  short: boolean,
+  low: boolean,
+  intensity: IntensityMode,
+  b1: Block1PairId,
+  b2: Block2PatternId,
+  b3: Block3PatternId,
+  recoveryMode: boolean
+): WorkoutCoachBlock[] {
+  const w = resolveEquipment(intensity);
+  const m = minutesForBlocks(short, low, recoveryMode);
+
+  const b1Title = recoveryMode
+    ? `Block 1 — Easy flow lower + pull (${m.b1} min)`
+    : `Block 1 — AMRAP lower + pull (${m.b1} min)`;
+  const b1Coaching = recoveryMode
+    ? "Recovery session — steady breathing, no grind. Simple patterns; leave energy in the tank."
+    : "Lower / hinge + pull in one flowing block. Pair patterns; avoid doubling heavy leg fatigue unless you want a hard conditioning bias.";
+
+  return [
+    {
+      id: id(),
+      kind: "amrap",
+      title: b1Title,
+      minutes: m.b1,
+      exercises: buildBlock1Pair(b1, w),
+      coaching: b1Coaching,
+    },
+    {
+      id: id(),
+      kind: "structured_push",
+      title: `Block 2 — Structured push (${m.b2} min)`,
+      minutes: m.b2,
+      exercises: buildBlock2(b2, w, low),
+      coaching: recoveryMode
+        ? "Light loads, full rest between sets — form and calm breathing over volume."
+        : "Bench and shoulder work stay structured (sets/reps), not AMRAP. Rest 45–60s. Progress via reps, top sets, and control — not exercise churn.",
+    },
+    {
+      id: id(),
+      kind: "core_circuit",
+      title: `Block 3 — Core circuit (${m.b3} min)`,
+      minutes: m.b3,
+      exercises: buildBlock3(b3, w),
+      coaching: recoveryMode
+        ? "Easy rounds — quality reps, no rush."
+        : "2–3 controlled rounds — not rushed. Dead bugs, leg raises, and carries are staples; RKC plank uses Quick Timer.",
+    },
+  ];
+}
+
+function ladderBlock(low: boolean): WorkoutCoachBlock[] {
+  const w = resolveEquipment(low ? "low" : "normal");
   return [
     {
       id: id(),
       kind: "kb_ladder",
-      title: "KB swing ladder + push-ups (22–28 min)",
+      title: "Conditioning — KB swing ladder + push-ups (~24 min)",
       minutes: 24,
-      exercises: [
-        {
-          name: "Swing ladder",
-          detail: `5-10-15-20-15-10-5 swings (${kb}). Push-ups between each rung.`,
-        },
-        {
-          name: "Push-ups",
-          detail: "As many good reps as needed between swing sets. Stop before form breaks.",
-        },
-      ],
-      coaching: "One rung at a time. Walk around between if needed.",
+      exercises: buildSwingLadderBlock(w),
+      coaching:
+        "Rungs: 5-10-15-20-15-10-5 swings. Push-ups between each swing set. One rung at a time; walk between if needed.",
     },
   ];
 }
 
 /**
- * Picks variant and builds workout from Peloton + yesterday + prefs.
+ * Smart generator: same framework each time; variety from rotation + prefs.
+ * Dashboard “saved” exercises are reserved for future substitution; core library drives structure.
  */
-export function generateWorkout(ctx: GenerateContext): GeneratedWorkout {
-  const { today, yesterday, preferShort, preferLowEnergy } = ctx;
+export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
+  const { today, yesterday, preferShort, preferLowEnergy, recoveryMode: recoveryModeOpt, rotation } =
+    ctx;
+  const recoveryMode = recoveryModeOpt === true;
 
   const bootcampToday = todayHasBootcampLike(today);
   const strengthYesterday =
@@ -124,37 +143,22 @@ export function generateWorkout(ctx: GenerateContext): GeneratedWorkout {
         (s.discipline ?? "").toLowerCase().includes("strength")
       ));
 
-  let variant: WorkoutCoachVariant = "standard";
-  if (preferShort) variant = "short";
-  if (preferLowEnergy) variant = "low_energy";
+  const short = recoveryMode || preferShort || strengthYesterday;
+  const low = recoveryMode || preferLowEnergy || strengthYesterday;
+  const intensity: IntensityMode = low ? "low" : "normal";
 
-  // Bootcamp done → message handled in UI; still allow a tiny "optional" workout — spec says no strength needed; we return minimal mobility optional in UI. For generate: return a very light "active recovery" single block if they insist — actually spec says "no strength needed". UI won't show Generate as primary — we'll handle in panel.
-
-  // Rotate ladder sometimes (deterministic by date)
-  const daySeed = new Date().getDate();
   const useLadder =
+    !recoveryMode &&
     !bootcampToday &&
     !preferShort &&
-    daySeed % 3 === 0 &&
-    !strengthYesterday;
+    !low &&
+    !strengthYesterday &&
+    rotation.generationsSinceLadder >= 3;
 
-  if (useLadder && !preferLowEnergy) {
-    return {
-      id: id(),
-      generatedAt: Date.now(),
-      variant: "ladder",
-      blocks: ladderBlocks(preferLowEnergy),
-      stretchGoal: "If shoulders feel good, add one extra ladder rung at the top.",
-    };
-  }
-
-  // Strength yesterday → bias cardio / lighter
-  const short = preferShort || strengthYesterday;
-  const low = preferLowEnergy || strengthYesterday;
-
-  // If bootcamp today, UI should skip generation; this is a safe fallback.
+  // —— Bootcamp optional easy core ——————————————————————————————
   if (bootcampToday) {
-    return {
+    const w = resolveEquipment("low");
+    const workout: GeneratedWorkout = {
       id: id(),
       generatedAt: Date.now(),
       variant: "short",
@@ -162,29 +166,62 @@ export function generateWorkout(ctx: GenerateContext): GeneratedWorkout {
         {
           id: id(),
           kind: "core_circuit",
-          title: "Optional — easy core (8 min)",
+          title: "Optional — easy reset (8 min)",
           minutes: 8,
-          exercises: [
-            { name: "Dead bug", detail: "Bodyweight · 2×10 slow" },
-            { name: "Side plank", detail: "20s each side" },
-          ],
-          coaching: "Bootcamp already covered you. Skip if you want.",
+          exercises: buildOptionalEasyCore(w),
+          coaching: "Bootcamp already loaded you. Skip or go easy.",
         },
       ],
     };
+    return {
+      workout,
+      rotation: advanceRotationBootcampOptional(rotation),
+    };
   }
 
-  const blocks = standardBlocks(short, low);
-  const stretch =
-    !low && !short
-      ? "If you finish early: +1 round of core circuit."
+  // —— Swing ladder conditioning ————————————————————————————————
+  if (useLadder) {
+    const workout: GeneratedWorkout = {
+      id: id(),
+      generatedAt: Date.now(),
+      variant: "ladder",
+      blocks: ladderBlock(low),
+      stretchGoal:
+        "Progression = smoother rungs, cleaner push-ups, consistent hinge — not new exercises every week.",
+    };
+    return {
+      workout,
+      rotation: advanceRotationLadder(rotation),
+    };
+  }
+
+  // —— Standard / short / low strength ——————————————————————————
+  const b1 = pickBlock1PairId(rotation, low);
+  const b2 = pickBlock2PatternId(rotation);
+  const b3 = pickBlock3PatternId(rotation);
+
+  const variant: WorkoutCoachVariant = recoveryMode || preferLowEnergy
+    ? "low_energy"
+    : short
+      ? "short"
+      : "standard";
+
+  const blocks = standardStrengthBlocks(short, low, intensity, b1, b2, b3, recoveryMode);
+  const stretchGoal =
+    !recoveryMode && !low && !short
+      ? "Progression: more quality rounds in Block 1, optional 15kg bench top set when fresh, tighter core rounds — same structure week to week."
       : undefined;
 
-  return {
+  const workout: GeneratedWorkout = {
     id: id(),
     generatedAt: Date.now(),
     variant,
     blocks,
-    stretchGoal: stretch,
+    stretchGoal,
+  };
+
+  return {
+    workout,
+    rotation: advanceRotationStandard(rotation, b1, b2, b3),
   };
 }

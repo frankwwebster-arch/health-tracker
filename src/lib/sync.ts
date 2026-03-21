@@ -46,7 +46,12 @@ function isEmptyDay(data: DayData): boolean {
     !d.workoutCoach?.workout &&
     !d.workoutCoach?.postLog &&
     !d.workoutCoach?.preferShort &&
-    !d.workoutCoach?.preferLowEnergy
+    !d.workoutCoach?.preferLowEnergy &&
+    !d.workoutCoach?.golfToday &&
+    !d.workoutCoach?.manualBootcampToday &&
+    !d.workoutCoach?.swimToday &&
+    !d.workoutCoach?.sleepQuality &&
+    !d.workoutCoach?.stepLevel
   );
 }
 

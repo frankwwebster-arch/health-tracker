@@ -111,10 +111,43 @@ export interface WorkoutCoachDayState {
   /** Inline toggles (no settings screen) */
   preferShort?: boolean;
   preferLowEnergy?: boolean;
+  /** Decision engine — manual overrides for today */
+  golfToday?: boolean;
+  /** User confirms bootcamp done (e.g. off-app) */
+  manualBootcampToday?: boolean;
+  /** Swim activity (distinct from bootcamp, rides, strength) — counts toward training streak */
+  swimToday?: boolean;
+  /** Optional inputs for coach decisions */
+  sleepQuality?: "good" | "ok" | "poor";
+  /** Derived or manual: walking load */
+  stepLevel?: "low" | "medium" | "high";
 }
 
 export interface ReminderLastNotified {
   [key: string]: number;
+}
+
+/** User-added lines merged into Workout Coach pools (Dashboard). */
+export type WorkoutCoachExerciseCategory = "amrap" | "push" | "core";
+
+export interface WorkoutCoachSavedExercise {
+  id: string;
+  category: WorkoutCoachExerciseCategory;
+  name: string;
+  /** Use {kb}, {squat}, {dbBench}, {dbPress}, {pullover} for auto weights when applicable */
+  detail: string;
+}
+
+/** Tracks recent patterns so sessions vary without chaos (persisted in Settings). */
+export interface WorkoutCoachRotation {
+  /** Newest first; Block 1 pair ids e.g. `goblet_row` */
+  recentBlock1PairIds: string[];
+  recentBlock2PatternIds: string[];
+  recentBlock3PatternIds: string[];
+  /** Generations since Block 1 last used thrusters (limits thruster frequency). */
+  gensSinceThruster: number;
+  /** Strength sessions since last swing-ladder conditioning day (triggers ladder when ≥ 3). */
+  generationsSinceLadder: number;
 }
 
 export interface Settings {
@@ -139,6 +172,10 @@ export interface Settings {
     bupropion: number;
   };
   customMeds: CustomMed[];
+  /** Extra coach exercises (optional); merged into generated pools by category */
+  workoutCoachSavedExercises: WorkoutCoachSavedExercise[];
+  /** Rotation memory for Workout Coach generator */
+  workoutCoachRotation: WorkoutCoachRotation;
 }
 
 export interface CustomMed {
@@ -171,6 +208,14 @@ export const DEFAULT_SETTINGS: Settings = {
     bupropion: 1,
   },
   customMeds: [],
+  workoutCoachSavedExercises: [],
+  workoutCoachRotation: {
+    recentBlock1PairIds: [],
+    recentBlock2PatternIds: [],
+    recentBlock3PatternIds: [],
+    gensSinceThruster: 10,
+    generationsSinceLadder: 0,
+  },
 };
 
 export function createEmptyDayData(): DayData {

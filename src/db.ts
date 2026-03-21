@@ -101,7 +101,21 @@ function migrateSettings(s: Settings): Settings {
       },
     };
   }
-  return { ...def, ...s };
+  const merged = { ...def, ...s } as Settings;
+  if (!Array.isArray(merged.workoutCoachSavedExercises)) {
+    merged.workoutCoachSavedExercises = [];
+  }
+  if (!merged.workoutCoachRotation || typeof merged.workoutCoachRotation !== "object") {
+    merged.workoutCoachRotation = { ...def.workoutCoachRotation };
+  } else {
+    const r = merged.workoutCoachRotation;
+    if (!Array.isArray(r.recentBlock1PairIds)) r.recentBlock1PairIds = [];
+    if (!Array.isArray(r.recentBlock2PatternIds)) r.recentBlock2PatternIds = [];
+    if (!Array.isArray(r.recentBlock3PatternIds)) r.recentBlock3PatternIds = [];
+    if (typeof r.gensSinceThruster !== "number") r.gensSinceThruster = def.workoutCoachRotation.gensSinceThruster;
+    if (typeof r.generationsSinceLadder !== "number") r.generationsSinceLadder = def.workoutCoachRotation.generationsSinceLadder;
+  }
+  return merged;
 }
 
 export async function getSettings(): Promise<Settings> {
