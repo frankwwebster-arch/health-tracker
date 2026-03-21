@@ -12,7 +12,7 @@ export type QuickTimersBarProps = {
   className?: string;
   /** When false, hide entirely (e.g. AMRAP active — timer is in the block). */
   visible?: boolean;
-  /** If set, only these preset buttons (subset of 15–60s). If undefined, show all presets. */
+  /** If set, only these preset buttons (subset of 15–60 s). If undefined, show all presets. */
   presets?: number[];
 };
 

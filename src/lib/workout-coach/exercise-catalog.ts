@@ -77,7 +77,7 @@ export const CORE_CIRCUIT: WorkoutCoachExercise[] = [
   { name: "Bench leg raises", detail: "3kg · 12 reps · slow" },
   {
     name: "Suitcase carries",
-    detail: "24kg each side · 30–40 steps each",
+    detail: "24kg each side · 40 steps each",
   },
   {
     name: "Pallof press",

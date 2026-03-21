@@ -50,7 +50,7 @@ export function WorkoutBlocksPreview({
           Preview
         </p>
         <span className="text-sm font-black text-slate-800 tabular-nums shrink-0">
-          ~{totalMinutes} min total
+          {totalMinutes} min total
         </span>
       </div>
       <div className="w-full min-w-0 max-w-full overflow-hidden">

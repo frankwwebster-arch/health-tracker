@@ -136,7 +136,7 @@ export function buildBlock3(patternId: Block3PatternId, w: ResolvedEquipment): W
   const deadbug = ex("Dead bug pullovers", [w.dbDeadBug, "8 reps each side", "ribs down"]);
   const legRaises = ex("Bench leg raises", [w.dbLegRaise + " (optional)", "6–8 reps", "slow, no rush"]);
   const carry = ex("Suitcase carries", ["24kg", "1 length each side per round", "anti-rotation"]);
-  const rkc = ex("RKC plank", ["15–20s hold", "high tension"]);
+  const rkc = ex("RKC plank", ["20s hold", "high tension"]);
 
   switch (patternId) {
     case "staple_carry_deadbug_raises":

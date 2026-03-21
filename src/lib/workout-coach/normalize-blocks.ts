@@ -1,8 +1,9 @@
 import type { GeneratedWorkout, WorkoutCoachBlock, WorkoutCoachBlockType } from "@/types";
 import {
+  clampWarmupCooldownMinutes,
   createCooldownBlock,
   createDefaultWarmupBlock,
-  STRENGTH_WARMUP_SECONDS,
+  MIN_WARMUP_COOLDOWN_MINUTES,
 } from "./block-factory";
 
 function inferBlockType(block: WorkoutCoachBlock): WorkoutCoachBlockType {
@@ -24,11 +25,12 @@ function inferBlockType(block: WorkoutCoachBlock): WorkoutCoachBlockType {
 }
 
 function fillDuration(block: WorkoutCoachBlock, blockType: WorkoutCoachBlockType): number {
+  if (blockType === "warmup_timed" || blockType === "cooldown_timed") {
+    const m = clampWarmupCooldownMinutes(block.minutes ?? MIN_WARMUP_COOLDOWN_MINUTES);
+    return m * 60;
+  }
   if (block.durationSeconds != null && block.durationSeconds > 0) return block.durationSeconds;
-  if (blockType === "warmup_timed") return STRENGTH_WARMUP_SECONDS;
-  if (blockType === "cooldown_timed") return Math.max(60, block.minutes * 60);
-
-  if (blockType === "amrap_timed") return Math.max(1, block.minutes) * 60;
+  if (blockType === "amrap_timed") return Math.max(1, block.minutes ?? 1) * 60;
   return 0;
 }
 
@@ -37,6 +39,39 @@ export function normalizeWorkoutBlock(block: WorkoutCoachBlock): WorkoutCoachBlo
   const blockType = inferBlockType(block);
   const targetRounds =
     block.targetRounds ?? block.roundTarget ?? (blockType === "structured_rounds" ? 3 : undefined);
+
+  if (blockType === "warmup_timed") {
+    const m =
+      block.durationSeconds != null && block.durationSeconds > 0
+        ? clampWarmupCooldownMinutes(Math.round(block.durationSeconds / 60))
+        : clampWarmupCooldownMinutes(block.minutes ?? MIN_WARMUP_COOLDOWN_MINUTES);
+    const durationSeconds = m * 60;
+    return {
+      ...block,
+      blockType,
+      minutes: m,
+      durationSeconds,
+      title: `Warm-up — ${m} min`,
+      targetRounds: targetRounds ?? undefined,
+    };
+  }
+
+  if (blockType === "cooldown_timed") {
+    const m =
+      block.durationSeconds != null && block.durationSeconds > 0
+        ? clampWarmupCooldownMinutes(Math.round(block.durationSeconds / 60))
+        : clampWarmupCooldownMinutes(block.minutes ?? MIN_WARMUP_COOLDOWN_MINUTES);
+    const durationSeconds = m * 60;
+    return {
+      ...block,
+      blockType,
+      minutes: m,
+      durationSeconds,
+      title: `Cool-down — ${m} min`,
+      targetRounds: targetRounds ?? undefined,
+    };
+  }
+
   const durationSeconds =
     blockType === "structured_rounds"
       ? undefined

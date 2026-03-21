@@ -434,7 +434,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
 
       {showBootcampCard && decision.outcome === "bootcamp_suggestion" && (
         <section className="rounded-2xl border-2 border-sky-200 bg-sky-50/80 p-4 text-sky-950 space-y-3">
-          <p className="text-sm font-bold">~{decision.durationMinutes} min bike</p>
+          <p className="text-sm font-bold">{decision.durationMinutes} min bike</p>
           <button
             type="button"
             onClick={() => setShowStrengthInstead(true)}
@@ -530,7 +530,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 Workout
               </h2>
               <div className="flex items-center gap-3 ml-auto">
-                <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
+                <span className="text-sm font-bold text-slate-700 tabular-nums">{workoutTotalMin} min</span>
                 <button
                   type="button"
                   onClick={handleEndWorkout}

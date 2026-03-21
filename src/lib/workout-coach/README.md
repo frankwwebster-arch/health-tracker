@@ -13,7 +13,7 @@
 
 | File | Purpose |
 |------|---------|
-| **`equipment.ts`** | KB/DB resolution for **normal** vs **low** intensity (your 24/20/16/12/8 kg KB and 15/12.5/10/7 kg DB pairs). |
+| **`equipment.ts`** | KB/DB resolution for **normal** vs **low** intensity; carries **24kg**; shoulder press **≥10kg pair**. |
 | **`library.ts`** | Exercise library — Block 1 pairs (lower+pull), Block 2 push patterns, Block 3 core patterns, swing ladder. |
 | **`rotation.ts`** | Picks next pattern while avoiding the last 1–2 repeats; updates **`Settings.workoutCoachRotation`**. |
 | **`generate.ts`** | Session types: standard/short/low, swing-ladder conditioning, bootcamp optional core. |
@@ -25,7 +25,7 @@
 ## Equipment & weights
 
 - **Normal:** e.g. swings/rows/carry **24kg**, goblet **20kg** (with **squat wedge** called out on goblet squats), bench **12.5kg pair**, shoulder **10kg pair**, dead bug **12.5kg**, leg raise **3kg**, swing ladder **24kg**.
-- **Low energy** (Coach toggle or “heavy yesterday” bias): one step lighter (e.g. **20kg** swing, **16kg** goblet, **10kg** bench pair).
+- **Low energy** (Coach toggle or “heavy yesterday” bias): one step lighter on most lifts (e.g. **20kg** swing, **16kg** goblet, **10kg** bench pair); shoulder stays **10kg pair**; carries **24kg**.
 - **Goblet squats:** default **use squat wedge** — stated explicitly on the line.
 
 ## Rotation (no random churn)
@@ -39,6 +39,14 @@
 - **`generationsSinceLadder`** — after **3** standard strength generations, next eligible session can be a **swing ladder** (unless short/low/bootcamp).
 
 Generating a workout **updates** this state (saved with settings).
+
+## Timing (deterministic)
+
+- **Warm-up** and **cool-down** are always timed blocks, first / last, with a **single explicit duration** in minutes (4, 5, or 6; **never below 4 min**). `durationSeconds` and headers stay in sync (`Warm-up — 4 min`, etc.).
+- **AMRAP / KB ladder** blocks use one integer minute duration (`N min AMRAP`); no approximate or ranged durations in titles.
+- **Structured** blocks use **rounds only** in headers (`Block N — … — 3 Rounds`), never mixed with time.
+- Quick-timer presets parse **single** hold durations (e.g. `20s`); no second-ranges in exercise copy for holds.
+- UI shows **exact** minute totals (no `~`).
 
 ## Session types
 

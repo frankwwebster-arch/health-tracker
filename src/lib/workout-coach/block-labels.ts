@@ -1,4 +1,8 @@
 import type { WorkoutCoachBlock, WorkoutCoachBlockKind, WorkoutCoachExercise } from "@/types";
+import {
+  MAX_COACH_WARMUP_COOLDOWN_MINUTES,
+  MIN_WARMUP_COOLDOWN_MINUTES,
+} from "@/lib/workout-coach/block-factory";
 
 /** Title-case display for block kind (e.g. Structured Push). */
 export function workoutBlockKindDisplayName(kind: WorkoutCoachBlockKind): string {
@@ -51,23 +55,15 @@ export const QUICK_TIMER_PRESET_SECONDS = [15, 20, 30, 45, 60] as const;
 
 /**
  * Seconds from block copy that map to quick timers (e.g. 20s plank → [20]).
- * Only values in QUICK_TIMER_PRESET_SECONDS are returned.
+ * Single explicit durations only (no second ranges like 15–20s in copy).
  */
 export function extractQuickTimerPresetsFromBlock(block: WorkoutCoachBlock): number[] {
   const text = block.exercises.map((e) => `${e.name} ${e.detail}`).join(" ");
   const found = new Set<number>();
   const allowed = new Set<number>(QUICK_TIMER_PRESET_SECONDS);
 
-  const rangeRe = /(\d{1,2})\s*[–-]\s*(\d{1,2})\s*s\b/gi;
-  let m: RegExpExecArray | null;
-  while ((m = rangeRe.exec(text)) !== null) {
-    const a = parseInt(m[1]!, 10);
-    const b = parseInt(m[2]!, 10);
-    if (allowed.has(a)) found.add(a);
-    if (allowed.has(b)) found.add(b);
-  }
-
   const singleRe = /\b(\d{1,2})\s*s\b/gi;
+  let m: RegExpExecArray | null;
   while ((m = singleRe.exec(text)) !== null) {
     const n = parseInt(m[1]!, 10);
     if (allowed.has(n)) found.add(n);
@@ -105,12 +101,20 @@ export function fixedRoundsBlockHeader(block: WorkoutCoachBlock, index: number):
 /** Warm-up — 4 min, Block 1 — 10 min AMRAP, Cool-down — 4 min (no rounds). */
 export function timedBlockDisplayTitle(block: WorkoutCoachBlock, index: number): string {
   const sec = block.durationSeconds ?? Math.max(60, block.minutes * 60);
-  const mins = Math.max(1, Math.round(sec / 60));
+  let mins = Math.max(1, Math.round(sec / 60));
 
   if (block.blockType === "warmup_timed" || block.kind === "warmup") {
+    mins = Math.max(
+      MIN_WARMUP_COOLDOWN_MINUTES,
+      Math.min(MAX_COACH_WARMUP_COOLDOWN_MINUTES, mins)
+    );
     return `Warm-up — ${mins} min`;
   }
   if (block.blockType === "cooldown_timed" || block.kind === "cooldown") {
+    mins = Math.max(
+      MIN_WARMUP_COOLDOWN_MINUTES,
+      Math.min(MAX_COACH_WARMUP_COOLDOWN_MINUTES, mins)
+    );
     return `Cool-down — ${mins} min`;
   }
   const n = index + 1;
