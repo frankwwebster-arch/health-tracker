@@ -9,6 +9,7 @@ export function getCoachStatusTone(
 ): CoachStatusTone {
   if (decision.outcome === "no_workout") return "green";
   if (decision.outcome === "consecutive_training_warning") return "amber";
+  if (decision.headline.includes("Rest day")) return "amber";
   if (preferLowEnergy) return "amber";
   if (decision.outcome === "strength") {
     const h = decision.headline.toLowerCase();

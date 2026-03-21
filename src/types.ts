@@ -68,6 +68,7 @@ export interface WorkoutCoachExercise {
 }
 
 export type WorkoutCoachBlockKind =
+  | "warmup"
   | "amrap"
   | "structured_push"
   | "core_circuit"
@@ -81,6 +82,8 @@ export interface WorkoutCoachBlock {
   exercises: WorkoutCoachExercise[];
   /** e.g. rest guidance */
   coaching?: string;
+  /** Fixed rounds for structured_push / core_circuit (no ranges) */
+  roundTarget?: number;
 }
 
 export type WorkoutCoachVariant = "standard" | "short" | "low_energy" | "ladder";

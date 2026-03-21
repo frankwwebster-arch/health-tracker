@@ -187,29 +187,20 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
     return {
       outcome: "no_workout",
       headline: "Golf day ✅",
-      subline: "No strength or bootcamp needed — enjoy the round.",
     };
   }
 
   if (flags.bootcampDoneToday) {
     return {
       outcome: "no_workout",
-      headline: flags.swimToday
-        ? "Activity already sufficient today ✅"
-        : "Exercise already completed today ✅",
-      subline: flags.swimToday
-        ? "Swim plus bootcamp — you’re covered."
-        : "Bootcamp done — you’re covered.",
+      headline: "Done for today ✅",
     };
   }
 
   if (flags.strengthDoneToday) {
     return {
       outcome: "no_workout",
-      headline: flags.swimToday
-        ? "Activity already sufficient today ✅"
-        : "Strength already completed today ✅",
-      subline: flags.swimToday ? "Swim plus strength — no further workout required." : "No further workout required.",
+      headline: "Done for today ✅",
     };
   }
 
@@ -218,61 +209,49 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (flags.bootcampsThisWeek >= 2) {
     return {
       outcome: "strength",
-      headline: "Suggested: Strength session",
-      subline: `Two bootcamps already this week — strength or rest. Peloton rides (7d): ${flags.pelotonRidesThisWeek} — ${SUGGESTED_WEEKLY_CARDIO_RIDES}/week suggested for cardio (each ride counts).`,
+      headline: "Suggested: Strength",
       preferShort: false,
       preferLowEnergy: false,
     };
   }
 
-  // —— Swim influence (bonus activity — lighter suggestions only, never harder) ——
+  // —— Swim influence ————————————————————————————————————————————————————————
 
   if (flags.swimToday) {
     if (flags.sleepQuality === "poor") {
       return {
         outcome: "strength",
-        headline: "Suggested: light recovery session or rest",
-        subline:
-          "Poor sleep plus swim — keep anything extra very easy, or take the day. Swim adds context, not pressure.",
+        headline: "Suggested: Light strength",
         preferShort: true,
         preferLowEnergy: true,
       };
     }
     return {
       outcome: "strength",
-      headline: "Optional: light strength session",
-      subline:
-        "You already swam — strength is optional. If you train, keep it short and easy; otherwise you’re done for today.",
+      headline: "Suggested: Light strength",
       preferShort: true,
       preferLowEnergy: true,
     };
   }
 
-  // —— Consecutive training fatigue (recovery / sleep tier) —————————————————————
+  // —— Consecutive training fatigue —————————————————————————————————————————————
 
   if (flags.consecutiveTrainingDays >= 4) {
-    const strong = flags.consecutiveTrainingDays >= 5;
     return {
       outcome: "consecutive_training_warning",
       streak: flags.consecutiveTrainingDays,
-      headline: strong
-        ? "You’ve trained several days in a row ⚠️"
-        : "You’ve trained 4 days in a row ⚠️",
-      subline: strong
-        ? "Recovery strongly recommended today — rest or very gentle movement. If you train, use Generate for a short recovery session only (easy pace, no grind)."
-        : "Suggested: rest day or very light activity. You can still generate a short recovery session below — it will stay short and low intensity.",
+      headline: "Rest day recommended ⚠️",
       preferShort: true,
       preferLowEnergy: true,
       recoveryMode: true,
     };
   }
 
-  // Low energy override: never bootcamp, always light strength path
+  // Low energy override
   if (preferLowEnergyToggle) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength session",
-      subline: "Short, lower intensity — you chose low energy.",
+      headline: "Suggested: Light strength",
       preferShort: true,
       preferLowEnergy: true,
     };
@@ -344,19 +323,15 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (scoreBootcamp >= 2 && scoreBootcamp > scoreStrength) {
     return {
       outcome: "bootcamp_suggestion",
-      headline: "Suggested: Bootcamp session today",
-      subline:
-        "Do a 30–45 min Peloton bootcamp. Keep effort moderate (about 7–8/10), middle of your resistance range.",
+      headline: "Suggested: Bootcamp",
       durationMinutes: 45,
     };
   }
 
-  // Case: poor recovery → light strength
   if (flags.sleepQuality === "poor" && (flags.trainedYesterday || scoreLight >= 3)) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength session",
-      subline: "Easier day — short blocks and lighter loads.",
+      headline: "Suggested: Light strength",
       preferShort: true,
       preferLowEnergy: true,
     };
@@ -365,22 +340,15 @@ export function decideWorkout(input: DecisionEngineInput): DecisionResult {
   if (scoreLight >= 3) {
     return {
       outcome: "strength",
-      headline: "Suggested: Light strength session",
-      subline: "Recovery-friendly volume.",
+      headline: "Suggested: Light strength",
       preferShort: true,
       preferLowEnergy: true,
     };
   }
 
-  // Default: strength
-  const defaultSubline = flags.weeklyCardioRidesTargetMet
-    ? `Suggested weekly Peloton ride cardio is covered (${flags.pelotonRidesThisWeek} ride${flags.pelotonRidesThisWeek === 1 ? "" : "s"} in the last 7 days). More rides or bootcamps are optional.`
-    : "Same framework as usual — press Generate when you’re ready.";
-
   return {
     outcome: "strength",
-    headline: "Suggested: Strength session",
-    subline: defaultSubline,
+    headline: "Suggested: Strength",
     preferShort: false,
     preferLowEnergy: false,
   };

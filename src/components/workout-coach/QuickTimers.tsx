@@ -48,7 +48,7 @@ export function QuickTimersBar({ className = "" }: QuickTimersBarProps) {
   return (
     <div className={`touch-manipulation ${className}`}>
       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
-        Rest timer
+        Timer
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {PRESETS.map((s) => {

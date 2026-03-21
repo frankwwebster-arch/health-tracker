@@ -1,12 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
-  DayData,
-  GeneratedWorkout,
-  WorkoutCoachBlockKind,
-  WorkoutCoachPostLog,
-} from "@/types";
+import type { DayData, GeneratedWorkout, WorkoutCoachPostLog } from "@/types";
 import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
 import { computeFlags, decideWorkout } from "@/lib/workout-coach/decision-engine";
@@ -15,19 +10,15 @@ import {
   isSwimPelotonSession,
   lastWorkoutTypeLabel,
 } from "@/lib/workout-coach/peloton";
-import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 import { QuickTimersBar } from "./QuickTimers";
 import { getDayData } from "@/db";
 import { useSettings } from "@/hooks/useTodayData";
-import { kbWeightLabel } from "@/lib/workout-coach/exercise-catalog";
-import { nextExtraPushSuggestion } from "@/lib/workout-coach/stretch-suggestions";
 import {
   getCoachStatusTone,
-  getTodayDecisionHint,
-  getTodayDecisionLabel,
   STATUS_CARD_STYLES,
   statusIconEmoji,
 } from "@/components/workout-coach/coach-status-ui";
+import { CollapsedBlock, WorkoutBlockRunner } from "@/components/workout-coach/workout-block-runner";
 
 type UpdateFn = (prev: DayData) => DayData;
 
@@ -35,14 +26,6 @@ interface Props {
   data: DayData;
   update: (fn: UpdateFn) => void;
   dateKey: string;
-}
-
-const REST_SEC = 75;
-
-function formatMmSs(total: number): string {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
@@ -55,6 +38,8 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   const [yesterdayData, setYesterdayData] = useState<DayData | null>(null);
   const [last30Days, setLast30Days] = useState<{ dateKey: string; data: DayData }[]>([]);
   const [showStrengthInstead, setShowStrengthInstead] = useState(false);
+  const [activeBlockIndex, setActiveBlockIndex] = useState(0);
+  const [workoutSessionEnded, setWorkoutSessionEnded] = useState(false);
 
   const last7Days = useMemo(() => last30Days.slice(0, 7), [last30Days]);
 
@@ -106,6 +91,13 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   useEffect(() => {
     setShowStrengthInstead(false);
   }, [decision.outcome, dateKey]);
+
+  useEffect(() => {
+    if (workout?.generatedAt != null) {
+      setActiveBlockIndex(0);
+      setWorkoutSessionEnded(false);
+    }
+  }, [workout?.generatedAt]);
 
   const lastType = lastWorkoutTypeLabel(data);
 
@@ -189,10 +181,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     await setSettings({ ...settings, workoutCoachRotation: result.rotation });
   };
 
-  const handleClearWorkout = () => {
-    setCoach({ workout: null });
-  };
-
   const toggleShort = () => setCoach({ preferShort: !coach.preferShort });
   const toggleLow = () => setCoach({ preferLowEnergy: !coach.preferLowEnergy });
 
@@ -212,15 +200,38 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   };
 
   const statusTone = getCoachStatusTone(decision, coach.preferLowEnergy ?? false);
-  const decisionLabel = getTodayDecisionLabel(decision);
-  const decisionHint = getTodayDecisionHint(decision, flags);
   const workoutTotalMin =
     workout != null ? workout.blocks.reduce((sum, b) => sum + b.minutes, 0) : 0;
+  /** Hide Generate / toggles whenever a session is on-screen (timers stay). */
+  const minimalThumbDock = workout != null && canTrainStrength;
 
-  /** Scroll padding so content clears fixed thumb dock (Generate + grid + toggles + timers). */
+  /** Scroll padding — smaller thumb dock when workout exists (timers only). */
   const scrollPad = isToday
-    ? "pb-[calc(30rem+env(safe-area-inset-bottom))]"
+    ? minimalThumbDock
+      ? "pb-[calc(14rem+env(safe-area-inset-bottom))]"
+      : "pb-[calc(30rem+env(safe-area-inset-bottom))]"
     : "pb-10";
+
+  const handleBlockFinished = () => {
+    if (!workout) return;
+    if (activeBlockIndex < workout.blocks.length - 1) {
+      setActiveBlockIndex((i) => i + 1);
+    } else {
+      setWorkoutSessionEnded(true);
+    }
+  };
+
+  const handleSaveWorkout = () => {
+    setCoach({ workout: null, postLog: {} });
+    setWorkoutSessionEnded(false);
+    setActiveBlockIndex(0);
+  };
+
+  const handleDiscardWorkout = () => {
+    setCoach({ workout: null, postLog: null });
+    setWorkoutSessionEnded(false);
+    setActiveBlockIndex(0);
+  };
 
   return (
     <div className="relative min-h-[100dvh] w-full max-w-md mx-auto touch-manipulation">
@@ -238,29 +249,13 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             <div className="min-w-0 flex-1 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Today</p>
               <h1 className="text-lg sm:text-xl font-extrabold leading-snug">{decision.headline}</h1>
-              {decision.subline && (
-                <p className="text-sm leading-snug opacity-90 line-clamp-4">{decision.subline}</p>
-              )}
             </div>
           </div>
         </section>
 
-        {/* 2 — Today’s decision */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-          Suggested today
-        </p>
-        <p className="text-lg font-bold text-slate-900">{decisionLabel}</p>
-        {decisionHint && (
-          <p className="text-sm text-slate-600 mt-2 leading-snug">{decisionHint}</p>
-        )}
-      </section>
-
       {showBootcampCard && decision.outcome === "bootcamp_suggestion" && (
         <section className="rounded-2xl border-2 border-sky-200 bg-sky-50/80 p-4 text-sky-950 space-y-3">
-          <p className="text-sm leading-snug">
-            <span className="font-semibold">Bike:</span> ~{decision.durationMinutes} min bootcamp.
-          </p>
+          <p className="text-sm font-bold">~{decision.durationMinutes} min bike</p>
           <button
             type="button"
             onClick={() => setShowStrengthInstead(true)}
@@ -341,45 +336,57 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
         </details>
       )}
 
-      {/* Generated workout */}
       {workout && canTrainStrength && (
         <section className="space-y-4">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Your workout
-            </h2>
-            <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
-          </div>
-          {workout.stretchGoal && (
-            <p className="text-sm text-slate-700 border-l-4 border-blue-500 pl-3 py-1 bg-slate-50 rounded-r-lg">
-              Extra: {workout.stretchGoal}
-            </p>
+          {!workoutSessionEnded && (
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Workout
+              </h2>
+              <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
+            </div>
           )}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleClearWorkout}
-              className="text-sm font-medium text-slate-500 hover:text-slate-800"
-            >
-              Clear workout
-            </button>
-          </div>
-          {workout.blocks.map((block, idx) => (
-            <BlockCard
-              key={block.id}
-              block={block}
-              index={idx}
-              total={workout.blocks.length}
-              preferLowEnergy={
-                (coach.preferLowEnergy ?? false) ||
-                decision.outcome === "consecutive_training_warning"
+          {workoutSessionEnded && (
+            <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 space-y-4 text-center">
+              <p className="text-xl font-extrabold text-emerald-900">Workout complete ✅</p>
+              <button
+                type="button"
+                onClick={handleSaveWorkout}
+                className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-white text-lg font-extrabold shadow-lg"
+              >
+                Save workout
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardWorkout}
+                className="w-full min-h-[48px] rounded-2xl border-2 border-red-300 text-red-700 font-bold text-sm"
+              >
+                Discard workout
+              </button>
+            </div>
+          )}
+          {!workoutSessionEnded &&
+            workout.blocks.map((block, idx) => {
+              if (idx < activeBlockIndex) {
+                return <CollapsedBlock key={block.id} title={block.title} />;
               }
-            />
-          ))}
+              if (idx === activeBlockIndex) {
+                return (
+                  <WorkoutBlockRunner
+                    key={block.id}
+                    block={block}
+                    index={idx}
+                    total={workout.blocks.length}
+                    onBlockFinished={handleBlockFinished}
+                  />
+                );
+              }
+              return null;
+            })}
         </section>
       )}
 
-      {canTrainStrength && workout && (
+      {canTrainStrength && postLog != null && !workout && (
         <PostWorkoutForm postLog={postLog} onSave={(log) => setCoach({ postLog: log })} />
       )}
       </div>
@@ -392,7 +399,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
           aria-label="Workout actions"
         >
           <div className="max-w-md mx-auto px-3 pt-3 space-y-3">
-            {canTrainStrength && (
+            {!minimalThumbDock && canTrainStrength && (
               <button
                 type="button"
                 onClick={handleGenerate}
@@ -401,53 +408,55 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 Generate workout
               </button>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setCoach({ manualBootcampToday: !coach.manualBootcampToday })}
-                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                  coach.manualBootcampToday
-                    ? "border-amber-400 bg-amber-100 text-amber-950"
-                    : "border-slate-200 bg-slate-50 text-slate-800"
-                }`}
-              >
-                Bootcamp
-              </button>
-              <button
-                type="button"
-                onClick={() => setCoach({ golfToday: !coach.golfToday })}
-                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                  coach.golfToday
-                    ? "border-emerald-400 bg-emerald-100 text-emerald-950"
-                    : "border-slate-200 bg-slate-50 text-slate-800"
-                }`}
-              >
-                Golf
-              </button>
-              <button
-                type="button"
-                onClick={toggleSwim}
-                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                  hasSwimToday(data)
-                    ? "border-sky-400 bg-sky-100 text-sky-950"
-                    : "border-slate-200 bg-slate-50 text-slate-800"
-                }`}
-              >
-                Swim
-              </button>
-              <button
-                type="button"
-                onClick={toggleLow}
-                className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                  coach.preferLowEnergy
-                    ? "border-amber-400 bg-amber-100 text-amber-950"
-                    : "border-slate-200 bg-slate-50 text-slate-800"
-                }`}
-              >
-                Low energy
-              </button>
-            </div>
-            {canTrainStrength && (
+            {!minimalThumbDock && (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCoach({ manualBootcampToday: !coach.manualBootcampToday })}
+                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                    coach.manualBootcampToday
+                      ? "border-amber-400 bg-amber-100 text-amber-950"
+                      : "border-slate-200 bg-slate-50 text-slate-800"
+                  }`}
+                >
+                  Bootcamp
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoach({ golfToday: !coach.golfToday })}
+                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                    coach.golfToday
+                      ? "border-emerald-400 bg-emerald-100 text-emerald-950"
+                      : "border-slate-200 bg-slate-50 text-slate-800"
+                  }`}
+                >
+                  Golf
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleSwim}
+                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                    hasSwimToday(data)
+                      ? "border-sky-400 bg-sky-100 text-sky-950"
+                      : "border-slate-200 bg-slate-50 text-slate-800"
+                  }`}
+                >
+                  Swim
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleLow}
+                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
+                    coach.preferLowEnergy
+                      ? "border-amber-400 bg-amber-100 text-amber-950"
+                      : "border-slate-200 bg-slate-50 text-slate-800"
+                  }`}
+                >
+                  Low energy
+                </button>
+              </div>
+            )}
+            {!minimalThumbDock && canTrainStrength && (
               <button
                 type="button"
                 onClick={toggleShort}
@@ -460,173 +469,18 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 Short session
               </button>
             )}
-            {(decision.outcome === "strength" || decision.outcome === "consecutive_training_warning") && (
-              <button
-                type="button"
-                onClick={handleApplySuggestion}
-                className="w-full min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
-              >
-                Apply coach toggles
-              </button>
-            )}
+            {!minimalThumbDock &&
+              (decision.outcome === "strength" || decision.outcome === "consecutive_training_warning") && (
+                <button
+                  type="button"
+                  onClick={handleApplySuggestion}
+                  className="w-full min-h-[44px] rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
+                >
+                  Apply coach toggles
+                </button>
+              )}
             <QuickTimersBar />
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BlockExtraPushRow({
-  blockKind,
-  preferLowEnergy,
-}: {
-  blockKind: WorkoutCoachBlockKind;
-  preferLowEnergy: boolean;
-}) {
-  const [hint, setHint] = useState<string | null>(null);
-  const [last, setLast] = useState<string | undefined>(undefined);
-  const kbHint = kbWeightLabel(preferLowEnergy);
-
-  const handleExtraPush = () => {
-    const line = nextExtraPushSuggestion(blockKind, { avoid: last, kbHint });
-    setLast(line);
-    setHint(line);
-  };
-
-  return (
-    <div className="mt-3 pt-3 border-t border-slate-100">
-      <button
-        type="button"
-        onClick={handleExtraPush}
-        className="w-full min-h-[44px] rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-700 font-semibold text-sm hover:bg-slate-100 transition-colors"
-      >
-        Extra push
-      </button>
-      {hint && (
-        <p className="mt-2 text-sm text-slate-800 font-medium leading-snug rounded-xl bg-slate-50 px-3 py-2 border border-slate-200">
-          {hint}
-        </p>
-      )}
-      {hint && (
-        <button
-          type="button"
-          onClick={handleExtraPush}
-          className="mt-2 text-sm text-slate-600 hover:text-slate-900 underline"
-        >
-          Another idea
-        </button>
-      )}
-    </div>
-  );
-}
-
-function BlockCard({
-  block,
-  index,
-  total,
-  preferLowEnergy,
-}: {
-  block: GeneratedWorkout["blocks"][0];
-  index: number;
-  total: number;
-  preferLowEnergy: boolean;
-}) {
-  const [phase, setPhase] = useState<"idle" | "work" | "rest">("idle");
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [timerKey, setTimerKey] = useState(0);
-
-  const workSeconds = block.minutes * 60;
-
-  useEffect(() => {
-    if (phase !== "work" && phase !== "rest") return;
-    if (secondsLeft <= 0) return;
-    const id = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          signalTimerEnd();
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [phase, timerKey]);
-
-  useEffect(() => {
-    if (secondsLeft > 0) return;
-    if (phase === "work") {
-      setPhase("rest");
-      setSecondsLeft(REST_SEC);
-      setTimerKey((k) => k + 1);
-    } else if (phase === "rest") {
-      setPhase("idle");
-    }
-  }, [secondsLeft, phase]);
-
-  const handleStart = () => {
-    setPhase("work");
-    setSecondsLeft(workSeconds);
-    setTimerKey((k) => k + 1);
-  };
-
-  const handleNextAfterRest = () => {
-    setPhase("idle");
-    setSecondsLeft(0);
-  };
-
-  return (
-    <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-            Block {index + 1} of {total}
-          </p>
-          <h3 className="text-base font-bold text-slate-900 mt-1 leading-snug">{block.title}</h3>
-        </div>
-        {(phase === "work" || phase === "rest") && (
-          <div className="text-3xl font-bold tabular-nums text-blue-600 shrink-0">
-            {formatMmSs(secondsLeft)}
-          </div>
-        )}
-      </div>
-      <ul className="space-y-3 mb-4">
-        {block.exercises.map((ex, i) => (
-          <li key={i} className="text-base leading-relaxed">
-            <span className="font-bold text-slate-900">{ex.name}</span>
-            <span className="text-slate-600"> — {ex.detail}</span>
-          </li>
-        ))}
-      </ul>
-      {block.coaching && (
-        <p className="text-xs text-slate-500 mb-4 leading-relaxed">{block.coaching}</p>
-      )}
-      {phase === "idle" && (
-        <>
-          <button
-            type="button"
-            onClick={handleStart}
-            className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold shadow-lg shadow-blue-600/20 active:scale-[0.99] touch-manipulation"
-          >
-            Start block
-          </button>
-          <BlockExtraPushRow blockKind={block.kind} preferLowEnergy={preferLowEnergy} />
-        </>
-      )}
-      {phase === "work" && (
-        <p className="text-center text-lg font-black text-blue-600 uppercase tracking-wide">Go</p>
-      )}
-      {phase === "rest" && (
-        <div className="space-y-3">
-          <p className="text-center text-lg font-black text-emerald-700">Block complete</p>
-          <p className="text-center text-3xl font-black text-slate-800 tabular-nums">Rest</p>
-          <button
-            type="button"
-            onClick={handleNextAfterRest}
-            className="w-full min-h-[56px] rounded-2xl border-2 border-slate-300 bg-white text-lg font-extrabold text-slate-900 active:bg-slate-50 touch-manipulation"
-          >
-            Next block
-          </button>
         </div>
       )}
     </div>

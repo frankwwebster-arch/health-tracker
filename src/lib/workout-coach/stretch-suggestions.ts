@@ -46,6 +46,7 @@ const GENERIC: string[] = [
 ];
 
 const BY_KIND: Record<WorkoutCoachBlockKind, readonly string[]> = {
+  warmup: GENERIC,
   amrap: AMRAP,
   structured_push: PUSH,
   core_circuit: CORE,

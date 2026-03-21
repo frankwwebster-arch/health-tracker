@@ -27,6 +27,9 @@ import {
   pickBlock3PatternId,
 } from "./rotation";
 
+const ROUND_PUSH = 3;
+const ROUND_CORE = 3;
+
 export interface GenerateContext {
   today: DayData;
   yesterday: DayData | null;
@@ -59,6 +62,21 @@ function minutesForBlocks(
   return { b1: 11, b2: 10, b3: 9 };
 }
 
+function buildWarmupBlock(): WorkoutCoachBlock {
+  return {
+    id: id(),
+    kind: "warmup",
+    title: "Warm-up (4 min)",
+    minutes: 4,
+    exercises: [
+      { name: "Bodyweight squats", detail: "10 reps" },
+      { name: "Push-ups", detail: "10 reps" },
+      { name: "Plank", detail: "20s" },
+      { name: "Arm circles", detail: "10 each way" },
+    ],
+  };
+}
+
 function standardStrengthBlocks(
   short: boolean,
   low: boolean,
@@ -71,41 +89,35 @@ function standardStrengthBlocks(
   const w = resolveEquipment(intensity);
   const m = minutesForBlocks(short, low, recoveryMode);
 
-  const b1Title = recoveryMode
-    ? `Block 1 — Easy flow lower + pull (${m.b1} min)`
-    : `Block 1 — AMRAP lower + pull (${m.b1} min)`;
-  const b1Coaching = recoveryMode
-    ? "Recovery session — steady breathing, no grind. Simple patterns; leave energy in the tank."
-    : "Lower / hinge + pull in one flowing block. Pair patterns; avoid doubling heavy leg fatigue unless you want a hard conditioning bias.";
+  const amrapTitle = recoveryMode ? `${m.b1} min easy flow` : `${m.b1} min AMRAP`;
 
   return [
+    buildWarmupBlock(),
     {
       id: id(),
       kind: "amrap",
-      title: b1Title,
+      title: amrapTitle,
       minutes: m.b1,
       exercises: buildBlock1Pair(b1, w),
-      coaching: b1Coaching,
+      coaching: recoveryMode ? "Easy pace. No grind." : undefined,
     },
     {
       id: id(),
       kind: "structured_push",
-      title: `Block 2 — Structured push (${m.b2} min)`,
+      title: `${ROUND_PUSH} rounds`,
       minutes: m.b2,
+      roundTarget: ROUND_PUSH,
       exercises: buildBlock2(b2, w, low),
-      coaching: recoveryMode
-        ? "Light loads, full rest between sets — form and calm breathing over volume."
-        : "Bench and shoulder work stay structured (sets/reps), not AMRAP. Rest 45–60s. Progress via reps, top sets, and control — not exercise churn.",
+      coaching: recoveryMode ? "Light loads. Full rest between sets." : undefined,
     },
     {
       id: id(),
       kind: "core_circuit",
-      title: `Block 3 — Core circuit (${m.b3} min)`,
+      title: `${ROUND_CORE} rounds`,
       minutes: m.b3,
+      roundTarget: ROUND_CORE,
       exercises: buildBlock3(b3, w),
-      coaching: recoveryMode
-        ? "Easy rounds — quality reps, no rush."
-        : "2–3 controlled rounds — not rushed. Dead bugs, leg raises, and carries are staples; RKC plank uses Quick Timer.",
+      coaching: recoveryMode ? "Controlled reps." : undefined,
     },
   ];
 }
@@ -113,21 +125,20 @@ function standardStrengthBlocks(
 function ladderBlock(low: boolean): WorkoutCoachBlock[] {
   const w = resolveEquipment(low ? "low" : "normal");
   return [
+    buildWarmupBlock(),
     {
       id: id(),
       kind: "kb_ladder",
-      title: "Conditioning — KB swing ladder + push-ups (~24 min)",
+      title: "24 min AMRAP",
       minutes: 24,
       exercises: buildSwingLadderBlock(w),
-      coaching:
-        "Rungs: 5-10-15-20-15-10-5 swings. Push-ups between each swing set. One rung at a time; walk between if needed.",
+      coaching: undefined,
     },
   ];
 }
 
 /**
  * Smart generator: same framework each time; variety from rotation + prefs.
- * Dashboard “saved” exercises are reserved for future substitution; core library drives structure.
  */
 export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
   const { today, yesterday, preferShort, preferLowEnergy, recoveryMode: recoveryModeOpt, rotation } =
@@ -155,7 +166,6 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
     !strengthYesterday &&
     rotation.generationsSinceLadder >= 3;
 
-  // —— Bootcamp optional easy core ——————————————————————————————
   if (bootcampToday) {
     const w = resolveEquipment("low");
     const workout: GeneratedWorkout = {
@@ -163,13 +173,15 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
       generatedAt: Date.now(),
       variant: "short",
       blocks: [
+        buildWarmupBlock(),
         {
           id: id(),
           kind: "core_circuit",
-          title: "Optional — easy reset (8 min)",
+          title: "1 round",
           minutes: 8,
+          roundTarget: 1,
           exercises: buildOptionalEasyCore(w),
-          coaching: "Bootcamp already loaded you. Skip or go easy.",
+          coaching: undefined,
         },
       ],
     };
@@ -179,15 +191,13 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
     };
   }
 
-  // —— Swing ladder conditioning ————————————————————————————————
   if (useLadder) {
     const workout: GeneratedWorkout = {
       id: id(),
       generatedAt: Date.now(),
       variant: "ladder",
       blocks: ladderBlock(low),
-      stretchGoal:
-        "Progression = smoother rungs, cleaner push-ups, consistent hinge — not new exercises every week.",
+      stretchGoal: undefined,
     };
     return {
       workout,
@@ -195,7 +205,6 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
     };
   }
 
-  // —— Standard / short / low strength ——————————————————————————
   const b1 = pickBlock1PairId(rotation, low);
   const b2 = pickBlock2PatternId(rotation);
   const b3 = pickBlock3PatternId(rotation);
@@ -207,10 +216,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
       : "standard";
 
   const blocks = standardStrengthBlocks(short, low, intensity, b1, b2, b3, recoveryMode);
-  const stretchGoal =
-    !recoveryMode && !low && !short
-      ? "Progression: more quality rounds in Block 1, optional 15kg bench top set when fresh, tighter core rounds — same structure week to week."
-      : undefined;
+  const stretchGoal = undefined;
 
   const workout: GeneratedWorkout = {
     id: id(),
