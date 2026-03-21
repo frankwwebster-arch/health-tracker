@@ -29,9 +29,11 @@ export function formatMmSs(total: number): string {
 
 export function CollapsedBlock({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 flex items-center gap-2 min-h-[52px] min-w-0 max-w-full transition-all duration-300 origin-top">
-      <span className="text-emerald-700 text-xl font-bold shrink-0">✓</span>
-      <span className="font-bold text-emerald-900 min-w-0 break-words [overflow-wrap:anywhere]">{title}</span>
+    <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50 px-4 py-2.5 flex items-center gap-2 min-h-[48px] min-w-0 max-w-full overflow-hidden motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out motion-safe:origin-top">
+      <span className="text-emerald-700 text-lg font-bold shrink-0">✓</span>
+      <span className="font-bold text-emerald-900 text-sm min-w-0 break-words [overflow-wrap:anywhere] line-clamp-2">
+        {title}
+      </span>
     </div>
   );
 }
@@ -46,6 +48,14 @@ type BaseProps = {
   onSession: SessionUpdater;
 };
 
+/** Legacy sessions may still have rest_started; treat as completed for UI. */
+function normalizeLiveForRouter(live: WorkoutCoachBlockLiveState): WorkoutCoachBlockLiveState {
+  if (live.blockType === "structured_rounds" && live.status === "rest_started") {
+    return { ...live, status: "completed" };
+  }
+  return live;
+}
+
 export function WorkoutRestTimerBar({
   rest,
   onPause,
@@ -58,20 +68,20 @@ export function WorkoutRestTimerBar({
   const rem = deriveRestRemainingSeconds(rest);
 
   return (
-    <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 space-y-2">
+    <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-4 space-y-2 shadow-md shadow-red-900/10">
       <div className="flex justify-between items-center gap-2">
-        <p className="text-[11px] font-bold text-amber-900 uppercase">Rest</p>
-        <span className="text-[10px] font-semibold text-amber-800">
-          {rest.autoStarted ? "Auto" : "Manual start"}
+        <p className="text-[11px] font-bold text-red-900 uppercase tracking-wide">Rest</p>
+        <span className="text-[10px] font-semibold text-red-800">
+          {rest.autoStarted ? "Auto-start" : "After your tap"}
         </span>
       </div>
       <button
         type="button"
         onClick={rest.endAtEpochMs != null ? onPause : onResume}
-        className="w-full min-h-[72px] rounded-2xl bg-amber-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
+        className="w-full min-h-[72px] rounded-2xl bg-red-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99] shadow-inner"
       >
         <span className="text-4xl font-black tabular-nums">{formatMmSs(rem)}</span>
-        <span className="text-xs font-bold uppercase opacity-90">
+        <span className="text-xs font-bold uppercase opacity-95">
           {rest.endAtEpochMs != null ? "Tap to pause" : "Tap to resume"}
         </span>
       </button>
@@ -156,16 +166,18 @@ function TimedWorkBlock({
         <button
           type="button"
           onClick={handlePrimary}
-          className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold active:scale-[0.99]"
+          className="w-full min-h-[88px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1.5 active:scale-[0.99] shadow-lg shadow-blue-600/20"
         >
-          {startLabel}
+          <span className="text-lg font-extrabold">{startLabel}</span>
+          <span className="text-3xl font-black tabular-nums opacity-95">{formatMmSs(live.remainingSeconds)}</span>
+          <span className="text-[11px] font-semibold uppercase opacity-90">Tap to begin — not a skip</span>
         </button>
       )}
       {!done && live.status === "active" && (
         <button
           type="button"
           onClick={handlePrimary}
-          className="w-full min-h-[72px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
+          className="w-full min-h-[88px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
         >
           <span className="text-4xl font-black tabular-nums">{formatMmSs(rem)}</span>
           <span className="text-xs font-bold uppercase opacity-90">Tap to pause</span>
@@ -180,7 +192,7 @@ function TimedWorkBlock({
           Resume ({formatMmSs(rem)})
         </button>
       )}
-      {done && <p className="text-center text-lg font-black text-emerald-700 py-2">Done</p>}
+      {done && <p className="text-center text-sm font-black text-emerald-700 py-1">Done</p>}
     </div>
   );
 }
@@ -246,16 +258,18 @@ function AmrapTimedBlock({ block, index, total, live, session, onSession }: Base
         <button
           type="button"
           onClick={handleStart}
-          className="w-full min-h-[56px] rounded-2xl bg-blue-600 text-white text-lg font-extrabold active:scale-[0.99]"
+          className="w-full min-h-[104px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1.5 active:scale-[0.99] shadow-lg shadow-blue-600/20 px-4"
         >
-          Start block
+          <span className="text-lg font-extrabold">Start block</span>
+          <span className="text-4xl font-black tabular-nums">{formatMmSs(live.remainingSeconds)}</span>
+          <span className="text-[11px] font-semibold uppercase opacity-90">Countdown runs in this button</span>
         </button>
       )}
       {!done && live.status === "active" && (
         <button
           type="button"
           onClick={handleTapTimer}
-          className="w-full min-h-[72px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
+          className="w-full min-h-[104px] rounded-2xl bg-blue-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
         >
           <span className="text-4xl font-black tabular-nums">{formatMmSs(rem)}</span>
           <span className="text-xs font-bold uppercase opacity-90">Tap to pause</span>
@@ -270,7 +284,7 @@ function AmrapTimedBlock({ block, index, total, live, session, onSession }: Base
           Resume ({formatMmSs(rem)})
         </button>
       )}
-      {done && <p className="text-center text-lg font-black text-emerald-700 py-2">Block complete</p>}
+      {done && <p className="text-center text-sm font-black text-emerald-700 py-1">Block complete</p>}
     </div>
   );
 }
@@ -283,10 +297,6 @@ function StructuredRoundsBlock({
   session,
   onSession,
 }: BaseProps & { live: StructuredRoundsLiveState }) {
-  if (live.status === "rest_started") {
-    return null;
-  }
-
   const patch = useCallback(
     (next: StructuredRoundsLiveState) => {
       onSession(patchStructuredState(session, block.id, next));
@@ -370,19 +380,24 @@ function StructuredRoundsBlock({
       )}
 
       {pending && (
-        <div className="space-y-2 pt-2 border-t border-slate-200">
-          <p className="text-sm font-bold text-slate-800 text-center">Target rounds done</p>
+        <div className="space-y-3 pt-3 border-t-2 border-emerald-200 bg-emerald-50/60 -mx-1 px-3 py-3 rounded-xl">
+          <p className="text-base font-extrabold text-emerald-950 text-center leading-snug">
+            All required rounds complete
+          </p>
+          <p className="text-xs text-center text-slate-700 leading-snug">
+            Rest does not start until you choose one option below.
+          </p>
           <button
             type="button"
             onClick={handleStartRest}
-            className="w-full min-h-[52px] rounded-2xl bg-slate-900 text-white font-extrabold"
+            className="w-full min-h-[52px] rounded-2xl bg-slate-900 text-white font-extrabold text-base shadow-md"
           >
             Start rest
           </button>
           <button
             type="button"
             onClick={handleExtraRoundTap}
-            className="w-full min-h-[52px] rounded-2xl border-2 border-dashed border-slate-400 bg-slate-50 text-slate-900 font-bold"
+            className="w-full min-h-[52px] rounded-2xl border-2 border-dashed border-slate-500 bg-white text-slate-900 font-bold"
           >
             {live.extraRoundState === "armed" ? "Extra round done" : "Extra round"}
           </button>
@@ -400,14 +415,15 @@ export function LiveBlockRouter({
   session,
   onSession,
 }: BaseProps & { live: WorkoutCoachBlockLiveState }) {
-  switch (live.blockType) {
+  const normalized = normalizeLiveForRouter(live);
+  switch (normalized.blockType) {
     case "warmup_timed":
       return (
         <TimedWorkBlock
           block={block}
           index={index}
           total={total}
-          live={live}
+          live={normalized}
           session={session}
           onSession={onSession}
           variant="warmup"
@@ -419,7 +435,7 @@ export function LiveBlockRouter({
           block={block}
           index={index}
           total={total}
-          live={live}
+          live={normalized}
           session={session}
           onSession={onSession}
           variant="cooldown"
@@ -427,7 +443,7 @@ export function LiveBlockRouter({
       );
     case "amrap_timed":
       return (
-        <AmrapTimedBlock block={block} index={index} total={total} live={live} session={session} onSession={onSession} />
+        <AmrapTimedBlock block={block} index={index} total={total} live={normalized} session={session} onSession={onSession} />
       );
     case "structured_rounds":
       return (
@@ -435,7 +451,7 @@ export function LiveBlockRouter({
           block={block}
           index={index}
           total={total}
-          live={live}
+          live={normalized}
           session={session}
           onSession={onSession}
         />

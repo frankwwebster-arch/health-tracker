@@ -21,6 +21,7 @@ export function isLiveSessionStale(
   return session.workoutId !== workout.id || session.workoutGeneratedAt !== workout.generatedAt;
 }
 
+/** Exported for UI fallback when blockStates is missing an entry (prevents blank active block). */
 export function defaultLiveStateForBlock(block: WorkoutCoachBlock): WorkoutCoachBlockLiveState {
   const bt = block.blockType ?? "amrap_timed";
   if (bt === "structured_rounds") {
@@ -177,19 +178,7 @@ export function completeRestTimer(
   session: WorkoutCoachLiveSession,
   blocks: WorkoutCoachBlock[]
 ): WorkoutCoachLiveSession {
-  const sourceId = session.restTimer?.sourceBlockId;
-  let blockStates = { ...session.blockStates };
-  if (sourceId) {
-    const live = blockStates[sourceId];
-    if (live?.blockType === "structured_rounds" && live.status === "rest_started") {
-      const next: StructuredRoundsLiveState = {
-        ...live,
-        status: "completed",
-      };
-      blockStates[sourceId] = next;
-    }
-  }
-  let s: WorkoutCoachLiveSession = { ...session, blockStates, restTimer: null };
+  const s: WorkoutCoachLiveSession = { ...session, restTimer: null };
   const nextIdx = s.activeBlockIndex + 1;
   if (nextIdx >= blocks.length) {
     return { ...s, workoutStatus: "completed" };
@@ -197,7 +186,7 @@ export function completeRestTimer(
   return { ...s, activeBlockIndex: nextIdx };
 }
 
-/** Structured: user chose Start Rest — block enters rest_started, rest timer starts (manual start semantics). */
+/** Structured: Start Rest — block marked complete immediately (green/collapsed), then 2 min rest (manual semantics). */
 export function structuredStartRest(
   session: WorkoutCoachLiveSession,
   blockId: string
@@ -205,14 +194,15 @@ export function structuredStartRest(
   const live = session.blockStates[blockId] as StructuredRoundsLiveState;
   const next: StructuredRoundsLiveState = {
     ...live,
-    status: "rest_started",
+    status: "completed",
+    extraRoundState: "unavailable",
   };
   const blockStates = { ...session.blockStates, [blockId]: next };
   let s: WorkoutCoachLiveSession = { ...session, blockStates };
   return activateRestTimer(s, blockId, false);
 }
 
-/** Structured: extra round recorded — rest_started + auto rest. */
+/** Structured: extra round done — block complete, auto-started rest. */
 export function structuredCompleteExtraRoundAndStartRest(
   session: WorkoutCoachLiveSession,
   blockId: string
@@ -220,7 +210,7 @@ export function structuredCompleteExtraRoundAndStartRest(
   const live = session.blockStates[blockId] as StructuredRoundsLiveState;
   const next: StructuredRoundsLiveState = {
     ...live,
-    status: "rest_started",
+    status: "completed",
     extraRoundState: "completed",
   };
   const blockStates = { ...session.blockStates, [blockId]: next };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AmrapTimedLiveState, DayData, WorkoutCoachPostLog, WarmupCooldownTimedLiveState } from "@/types";
 import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
@@ -30,12 +30,14 @@ import {
   completeRestTimer,
   completeWarmupCooldownWork,
   createInitialLiveSession,
+  defaultLiveStateForBlock,
   deriveRestRemainingSeconds,
   deriveTimedRemainingSeconds,
   isLiveSessionStale,
   mergeLiveSessionBlockStates,
   setSessionStarted,
 } from "@/lib/workout-coach/live-session";
+import { fixedRoundsBlockHeader } from "@/lib/workout-coach/block-labels";
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 type UpdateFn = (prev: DayData) => DayData;
@@ -348,6 +350,30 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     setCoach({ liveSession: setSessionStarted(base, true) });
   };
 
+  const activeBlockScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sessionStarted || workoutSessionEnded) return;
+    activeBlockScrollRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [activeBlockIndex, sessionStarted, workoutSessionEnded]);
+
+  const handleEndWorkout = () => {
+    if (typeof window !== "undefined" && window.confirm("End workout? Progress will be lost.")) {
+      setCoach({ workout: null, postLog: null, liveSession: null });
+    }
+  };
+
+  function collapsedTitleForBlock(block: (typeof blocksForSession)[number], idx: number): string {
+    if (
+      block.blockType === "structured_rounds" ||
+      block.kind === "structured_push" ||
+      block.kind === "core_circuit"
+    ) {
+      return fixedRoundsBlockHeader(block, idx);
+    }
+    return block.title;
+  }
+
   return (
     <div className="relative min-h-[100dvh] w-full max-w-md mx-auto touch-manipulation">
       {/* Upper zone: status + read-only context — scrolls; primary taps live in fixed dock */}
@@ -463,11 +489,20 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             />
           )}
           {!workoutSessionEnded && sessionStarted && (
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Workout
               </h2>
-              <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
+              <div className="flex items-center gap-3 ml-auto">
+                <span className="text-sm font-bold text-slate-700 tabular-nums">~{workoutTotalMin} min</span>
+                <button
+                  type="button"
+                  onClick={handleEndWorkout}
+                  className="text-xs font-bold text-red-600 underline underline-offset-2 min-h-[44px] px-1"
+                >
+                  End workout
+                </button>
+              </div>
             </div>
           )}
           {workoutSessionEnded && (
@@ -494,7 +529,9 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             liveSession &&
             blocksForSession.map((block, idx) => {
               if (idx < activeBlockIndex) {
-                return <CollapsedBlock key={block.id} title={block.title} />;
+                return (
+                  <CollapsedBlock key={block.id} title={collapsedTitleForBlock(block, idx)} />
+                );
               }
               if (idx > activeBlockIndex) return null;
               if (
@@ -503,8 +540,12 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 idx === activeBlockIndex
               ) {
                 return (
-                  <div key={block.id} className="space-y-3">
-                    <CollapsedBlock title={block.title} />
+                  <div
+                    key={block.id}
+                    ref={activeBlockScrollRef}
+                    className="space-y-3 scroll-mt-4"
+                  >
+                    <CollapsedBlock title={collapsedTitleForBlock(block, idx)} />
                     <RestTimerDock
                       rest={liveSession.restTimer}
                       session={liveSession}
@@ -513,18 +554,22 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                   </div>
                 );
               }
-              const live = liveSession.blockStates[block.id];
-              if (!live) return null;
+              const live = liveSession.blockStates[block.id] ?? defaultLiveStateForBlock(block);
               return (
-                <LiveBlockRouter
+                <div
                   key={block.id}
-                  block={block}
-                  index={idx}
-                  total={blocksForSession.length}
-                  live={live}
-                  session={liveSession}
-                  onSession={(next) => setCoach({ liveSession: next })}
-                />
+                  ref={activeBlockScrollRef}
+                  className="scroll-mt-4"
+                >
+                  <LiveBlockRouter
+                    block={block}
+                    index={idx}
+                    total={blocksForSession.length}
+                    live={live}
+                    session={liveSession}
+                    onSession={(next) => setCoach({ liveSession: next })}
+                  />
+                </div>
               );
             })}
         </section>
