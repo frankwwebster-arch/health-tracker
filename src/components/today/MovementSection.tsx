@@ -46,9 +46,16 @@ export function MovementSection({ data, update, dateKey }: Props) {
   const isCustom = manualWorkoutMinutesForUi != null && !isPreset;
   const hasSavedWorkout = data.workoutMinutes != null || hasSessions;
 
+  /** Manual / Today-only minutes or Workout Coach post-log — safe to clear without touching Peloton. */
+  const hasCoachPostLog = data.workoutCoach?.postLog != null;
+  const hasManualWorkoutEntry = !hasSessions
+    ? data.workoutMinutes != null
+    : manualWorkoutMinutesForUi != null;
+  const hasPlatformWorkoutToDelete = hasManualWorkoutEntry || hasCoachPostLog;
+
   useEffect(() => {
-    if (!hasSavedWorkout) setPendingDeleteWorkout(false);
-  }, [hasSavedWorkout]);
+    if (!hasPlatformWorkoutToDelete) setPendingDeleteWorkout(false);
+  }, [hasPlatformWorkoutToDelete]);
 
   const handleSyncFromPeloton = async () => {
     setPelotonSyncing(true);
@@ -230,25 +237,32 @@ export function MovementSection({ data, update, dateKey }: Props) {
             </div>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {hasSavedWorkout &&
+            {hasPlatformWorkoutToDelete &&
               (pendingDeleteWorkout ? (
                 <div className="flex flex-wrap items-center gap-2 w-full">
-                  <span className="text-sm text-amber-800 font-medium">Remove this workout from the day?</span>
+                  <span className="text-sm text-amber-800 font-medium">
+                    Remove on-platform workout only? Peloton imports stay.
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
-                      update((prev) => ({
-                        ...prev,
-                        workoutMinutes: null,
-                        workoutSessions: undefined,
-                        // Workout Coach completion is stored on `workoutCoach.postLog`; clearing
-                        // minutes/sessions alone leaves postLog set, so the coach still shows
-                        // "Done for today" until this is cleared (see decision-engine strengthDoneToday).
-                        workoutCoach: {
-                          ...prev.workoutCoach,
-                          postLog: null,
-                        },
-                      }));
+                      update((prev) => {
+                        const sess = prev.workoutSessions ?? [];
+                        const pelotonSum = sess.reduce(
+                          (sum, s) => sum + (s.durationMinutes ?? 0),
+                          0
+                        );
+                        const keepPeloton = sess.length > 0 && pelotonSum > 0;
+                        return {
+                          ...prev,
+                          // Never clear or alter Peloton session list — only platform totals / coach log.
+                          workoutMinutes: keepPeloton ? pelotonSum : null,
+                          workoutCoach: {
+                            ...prev.workoutCoach,
+                            postLog: null,
+                          },
+                        };
+                      });
                       setPendingDeleteWorkout(false);
                     }}
                     className="min-h-[44px] px-4 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.99]"
