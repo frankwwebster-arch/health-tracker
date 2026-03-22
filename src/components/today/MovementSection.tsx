@@ -116,24 +116,6 @@ export function MovementSection({ data, update, dateKey }: Props) {
     }));
   };
 
-  const clearSwim = () => {
-    update((prev) => ({
-      ...prev,
-      manualSwimMinutes: null,
-      workoutCoach: {
-        ...prev.workoutCoach,
-        swimToday: false,
-      },
-    }));
-  };
-
-  const clearOther = () => {
-    update((prev) => ({
-      ...prev,
-      manualOtherActivity: null,
-    }));
-  };
-
   return (
     <section className="mb-10">
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
@@ -166,7 +148,7 @@ export function MovementSection({ data, update, dateKey }: Props) {
                   : "bg-white/80 text-gray-600 border-border hover:bg-white"
               }`}
             >
-              {golfOn ? "Golf (selected)" : "Golf"}
+              Golf
             </button>
             <button
               type="button"
@@ -188,7 +170,9 @@ export function MovementSection({ data, update, dateKey }: Props) {
                   : "bg-white/80 text-gray-600 border-border hover:bg-white"
               }`}
             >
-              {otherAct != null ? `Other (${otherAct.name})` : "Other"}
+              {otherAct != null
+                ? `${otherAct.name} (${otherAct.minutes} min)`
+                : "Other"}
             </button>
           </div>
 
@@ -244,46 +228,6 @@ export function MovementSection({ data, update, dateKey }: Props) {
               </button>
             )}
           </div>
-
-          {/* Phase A activity lines (Coach row above; Peloton below) */}
-          {(golfOn || (swimMin != null && swimMin > 0) || otherAct != null) && (
-            <ul className="mt-3 space-y-2 text-sm">
-              {golfOn && (
-                <li className="text-gray-800">
-                  <span className="font-semibold text-gray-900">Golf</span>
-                </li>
-              )}
-              {swimMin != null && swimMin > 0 && (
-                <li className="flex flex-wrap items-center gap-2 text-gray-800">
-                  <span>
-                    <span className="font-semibold text-gray-900">Swim:</span> {swimMin} min
-                  </span>
-                  <button
-                    type="button"
-                    onClick={clearSwim}
-                    className="text-xs font-medium text-red-700 hover:underline"
-                  >
-                    Clear
-                  </button>
-                </li>
-              )}
-              {otherAct != null && (
-                <li className="flex flex-wrap items-center gap-2 text-gray-800">
-                  <span>
-                    <span className="font-semibold text-gray-900">{otherAct.name}:</span>{" "}
-                    {otherAct.minutes} min
-                  </span>
-                  <button
-                    type="button"
-                    onClick={clearOther}
-                    className="text-xs font-medium text-red-700 hover:underline"
-                  >
-                    Clear
-                  </button>
-                </li>
-              )}
-            </ul>
-          )}
 
           {hasSessions && (
             <div className="mt-3">
@@ -382,6 +326,17 @@ export function MovementSection({ data, update, dateKey }: Props) {
             }));
             setSwimModalOpen(false);
           }}
+          onDelete={() => {
+            update((prev) => ({
+              ...prev,
+              manualSwimMinutes: null,
+              workoutCoach: {
+                ...prev.workoutCoach,
+                swimToday: false,
+              },
+            }));
+            setSwimModalOpen(false);
+          }}
         />
         <OtherActivityModal
           open={otherModalOpen}
@@ -391,6 +346,13 @@ export function MovementSection({ data, update, dateKey }: Props) {
             update((prev) => ({
               ...prev,
               manualOtherActivity: entry,
+            }));
+            setOtherModalOpen(false);
+          }}
+          onDelete={() => {
+            update((prev) => ({
+              ...prev,
+              manualOtherActivity: null,
             }));
             setOtherModalOpen(false);
           }}
@@ -457,11 +419,13 @@ function SwimModal({
   initialMinutes,
   onClose,
   onSave,
+  onDelete,
 }: {
   open: boolean;
   initialMinutes: number | null;
   onClose: () => void;
   onSave: (minutes: number) => void;
+  onDelete: () => void;
 }) {
   const [custom, setCustom] = useState("");
 
@@ -522,6 +486,15 @@ function SwimModal({
             Save
           </button>
         </div>
+        {initialMinutes != null && initialMinutes > 0 && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="mt-3 w-full min-h-[44px] rounded-xl text-sm font-semibold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100"
+          >
+            Remove
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
@@ -539,11 +512,13 @@ function OtherActivityModal({
   initial,
   onClose,
   onSave,
+  onDelete,
 }: {
   open: boolean;
   initial: { name: string; minutes: number } | null;
   onClose: () => void;
   onSave: (entry: { name: string; minutes: number }) => void;
+  onDelete: () => void;
 }) {
   const [name, setName] = useState("");
   const [minutes, setMinutes] = useState("");
@@ -597,6 +572,15 @@ function OtherActivityModal({
         >
           Save
         </button>
+        {initial != null && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full min-h-[44px] rounded-xl text-sm font-semibold text-red-700 border border-red-200 bg-red-50 hover:bg-red-100 mb-2"
+          >
+            Remove
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
