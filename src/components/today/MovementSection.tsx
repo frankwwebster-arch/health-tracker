@@ -179,6 +179,13 @@ export function MovementSection({ data, update, dateKey }: Props) {
                         ...prev,
                         workoutMinutes: null,
                         workoutSessions: undefined,
+                        // Workout Coach completion is stored on `workoutCoach.postLog`; clearing
+                        // minutes/sessions alone leaves postLog set, so the coach still shows
+                        // "Done for today" until this is cleared (see decision-engine strengthDoneToday).
+                        workoutCoach: {
+                          ...prev.workoutCoach,
+                          postLog: null,
+                        },
                       }));
                       setPendingDeleteWorkout(false);
                     }}

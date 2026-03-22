@@ -65,11 +65,13 @@ export function QuickTimersBar({
   if (presetButtons.length === 0) return null;
 
   return (
-    <div className={`touch-manipulation ${className}`}>
-      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
-        Timer
-      </p>
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      className={`touch-manipulation ${className}`}
+      role="group"
+      aria-label="Quick timers"
+    >
+      {/* Single row: centered presets; countdown lives inside the active button only */}
+      <div className="flex w-full min-h-[52px] items-center justify-evenly gap-1.5 sm:gap-2 overflow-x-auto px-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {presetButtons.map((s) => {
           const isActive = activePreset === s && secondsLeft != null && secondsLeft > 0;
           return (
@@ -77,22 +79,23 @@ export function QuickTimersBar({
               key={s}
               type="button"
               onClick={() => start(s)}
-              className={`snap-start shrink-0 min-h-[52px] min-w-[64px] px-4 rounded-2xl text-lg font-bold transition-colors active:opacity-80 touch-manipulation ${
+              aria-pressed={isActive}
+              aria-label={
+                isActive && secondsLeft != null
+                  ? `Timer ${s} seconds, ${secondsLeft} remaining`
+                  : `Start ${s} second timer`
+              }
+              className={`shrink-0 min-h-[52px] min-w-[64px] rounded-2xl font-bold transition-colors active:opacity-80 touch-manipulation tabular-nums flex items-center justify-center px-3 ${
                 isActive
-                  ? "bg-sky-600 text-white shadow-lg ring-2 ring-sky-400 scale-[1.02]"
-                  : "bg-sky-100 text-sky-950 border-2 border-sky-200 hover:bg-sky-200"
+                  ? "bg-sky-600 text-white shadow-md ring-2 ring-inset ring-white/30 text-2xl font-black"
+                  : "bg-sky-100 text-sky-950 border-2 border-sky-200 hover:bg-sky-200 text-lg"
               }`}
             >
-              {s}s
+              {isActive && secondsLeft != null ? secondsLeft : `${s}s`}
             </button>
           );
         })}
       </div>
-      {secondsLeft != null && (
-        <p className="text-center mt-2 text-5xl font-black tabular-nums text-sky-900 leading-none">
-          {secondsLeft}
-        </p>
-      )}
     </div>
   );
 }
