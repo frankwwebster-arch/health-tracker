@@ -1,7 +1,8 @@
 /**
  * Workout Decision Engine — one clear call: what should today look like?
- * Priority: golf → already trained (bootcamp/strength) → bootcamp weekly cap → swim influence
- * → consecutive fatigue → low-energy toggle → yesterday / weekly balance → default.
+ * Priority: golf → coach-logged done (bootcamp/strength toggles + postLog only; Peloton never blocks)
+ * → bootcamp weekly cap → swim influence → consecutive fatigue → low-energy toggle
+ * → yesterday / weekly balance → default.
  */
 
 import type { DayData } from "@/types";
@@ -20,7 +21,9 @@ export type WorkoutActivityType = "strength" | "bootcamp" | "ride" | "golf" | "s
 export const SUGGESTED_WEEKLY_CARDIO_RIDES = 2;
 
 export interface DailyWorkoutFlags {
+  /** Manual Bootcamp toggle; Peloton bootcamp is excluded (hard-stop “done” for coach only). */
   bootcampDoneToday: boolean;
+  /** Workout Coach `postLog` only; Peloton strength is excluded. */
   strengthDoneToday: boolean;
   golfToday: boolean;
   /** Manual `swimToday` and/or logged swim session — not bootcamp, ride, or strength. */
@@ -78,18 +81,20 @@ export type DecisionResult =
       recoveryMode: true;
     };
 
-/** User completed a Peloton strength-style class or logged a completed coach strength session. */
+/**
+ * Strength session “done for coach purposes” — **Workout Coach post-log only**.
+ * Peloton strength classes do not block or satisfy this (see product: coach vs Peloton independence).
+ */
 export function strengthDoneToday(d: DayData): boolean {
-  if (hasStrengthPelotonToday(d)) return true;
-  if (d.workoutCoach?.postLog != null) return true;
-  return false;
+  return d.workoutCoach?.postLog != null;
 }
 
-/** Bootcamp from Peloton or manual confirmation. */
+/**
+ * Bootcamp “done for coach purposes” — **manual Bootcamp toggle only**.
+ * Peloton bootcamp sessions still count in weekly stats / Movement UI but do not block Workout Coach.
+ */
 export function bootcampDoneToday(d: DayData): boolean {
-  if (todayHasBootcampLike(d)) return true;
-  if (d.workoutCoach?.manualBootcampToday) return true;
-  return false;
+  return d.workoutCoach?.manualBootcampToday === true;
 }
 
 export function trainedOnDay(d: DayData): boolean {
