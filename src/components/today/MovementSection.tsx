@@ -19,9 +19,31 @@ export function MovementSection({ data, update, dateKey }: Props) {
   const [pelotonSyncing, setPelotonSyncing] = useState(false);
   const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
   const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState(false);
-  const isPreset = data.workoutMinutes != null && PRESET_MINS.includes(data.workoutMinutes as (typeof PRESET_MINS)[number]);
-  const isCustom = data.workoutMinutes != null && !isPreset;
-  const hasSessions = (data.workoutSessions ?? []).length > 0;
+
+  const sessions = data.workoutSessions ?? [];
+  const hasSessions = sessions.length > 0;
+  const pelotonTotalMinutes = hasSessions
+    ? sessions.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
+    : 0;
+
+  /**
+   * On-platform minutes (presets / Other). Peloton sync stores total minutes in `workoutMinutes`
+   * equal to the sum of session durations — that must not appear in "Other" (only in From Peloton).
+   * When sessions exist, manual remainder = total − Peloton aggregate.
+   */
+  const manualWorkoutMinutesForUi: number | null = !hasSessions
+    ? data.workoutMinutes
+    : data.workoutMinutes == null
+      ? null
+      : (() => {
+          const remainder = data.workoutMinutes - pelotonTotalMinutes;
+          return remainder > 0 ? remainder : null;
+        })();
+
+  const isPreset =
+    manualWorkoutMinutesForUi != null &&
+    PRESET_MINS.includes(manualWorkoutMinutesForUi as (typeof PRESET_MINS)[number]);
+  const isCustom = manualWorkoutMinutesForUi != null && !isPreset;
   const hasSavedWorkout = data.workoutMinutes != null || hasSessions;
 
   useEffect(() => {
@@ -81,13 +103,13 @@ export function MovementSection({ data, update, dateKey }: Props) {
       <div className="space-y-3">
         <div
           className={`rounded-2xl border p-4 shadow-card hover:shadow-card-hover transition-shadow ${
-            data.workoutMinutes != null ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
+            hasSavedWorkout ? "border-accent/20 bg-accent-soft/50" : "border-border bg-white"
           }`}
         >
           <p className="font-medium text-gray-800 mb-3">Workout</p>
           <div className="flex flex-wrap gap-2">
             {PRESET_MINS.map((mins) => {
-              const selected = data.workoutMinutes === mins;
+              const selected = manualWorkoutMinutesForUi === mins;
               return (
                 <label
                   key={mins}
@@ -102,9 +124,29 @@ export function MovementSection({ data, update, dateKey }: Props) {
                     checked={selected}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        update((prev) => ({ ...prev, workoutMinutes: mins }));
+                        update((prev) => {
+                          const pts = (prev.workoutSessions ?? []).reduce(
+                            (sum, s) => sum + (s.durationMinutes ?? 0),
+                            0
+                          );
+                          const hasPel = (prev.workoutSessions ?? []).length > 0;
+                          return {
+                            ...prev,
+                            workoutMinutes: hasPel ? pts + mins : mins,
+                          };
+                        });
                       } else {
-                        update((prev) => ({ ...prev, workoutMinutes: null }));
+                        update((prev) => {
+                          const pts = (prev.workoutSessions ?? []).reduce(
+                            (sum, s) => sum + (s.durationMinutes ?? 0),
+                            0
+                          );
+                          const hasPel = (prev.workoutSessions ?? []).length > 0;
+                          return {
+                            ...prev,
+                            workoutMinutes: hasPel ? (pts > 0 ? pts : null) : null,
+                          };
+                        });
                       }
                     }}
                     className="sr-only"
@@ -126,14 +168,34 @@ export function MovementSection({ data, update, dateKey }: Props) {
                 min={1}
                 max={240}
                 placeholder="min"
-                value={isCustom && data.workoutMinutes != null ? data.workoutMinutes : ""}
+                value={isCustom && manualWorkoutMinutesForUi != null ? manualWorkoutMinutesForUi : ""}
                 onChange={(e) => {
                   const v = e.target.value;
                   if (v === "") {
-                    update((prev) => ({ ...prev, workoutMinutes: null }));
+                    update((prev) => {
+                      const pts = (prev.workoutSessions ?? []).reduce(
+                        (sum, s) => sum + (s.durationMinutes ?? 0),
+                        0
+                      );
+                      const hasPel = (prev.workoutSessions ?? []).length > 0;
+                      return {
+                        ...prev,
+                        workoutMinutes: hasPel ? (pts > 0 ? pts : null) : null,
+                      };
+                    });
                   } else {
                     const n = Math.min(240, Math.max(1, parseInt(v, 10) || 0));
-                    update((prev) => ({ ...prev, workoutMinutes: n }));
+                    update((prev) => {
+                      const pts = (prev.workoutSessions ?? []).reduce(
+                        (sum, s) => sum + (s.durationMinutes ?? 0),
+                        0
+                      );
+                      const hasPel = (prev.workoutSessions ?? []).length > 0;
+                      return {
+                        ...prev,
+                        workoutMinutes: hasPel ? pts + n : n,
+                      };
+                    });
                   }
                 }}
                 className={`w-16 rounded-lg border-0 bg-transparent px-1 py-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isCustom ? "text-white placeholder:text-white/60" : "text-gray-800 placeholder:text-muted"}`}
@@ -149,16 +211,16 @@ export function MovementSection({ data, update, dateKey }: Props) {
                 {(data.workoutSessions ?? []).map((s) => (
                   <div
                     key={s.id}
-                    className="rounded-xl px-3 py-2.5 bg-white/80 border border-border/60 text-sm shadow-sm"
+                    className="rounded-xl px-4 py-2.5 min-h-[44px] flex flex-col justify-center bg-accent text-white border border-accent shadow-sm text-sm font-medium"
                   >
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-gray-800">
+                      <span className="font-medium text-white">
                         {s.discipline ? s.discipline.replace(/^./, (c) => c.toUpperCase()) : "Workout"}
                       </span>
-                      <span className="text-muted shrink-0">{s.durationMinutes} min</span>
+                      <span className="text-white/90 shrink-0 tabular-nums">{s.durationMinutes} min</span>
                     </div>
                     {(s.title || s.instructor) && (
-                      <p className="mt-1 text-muted text-xs leading-snug">
+                      <p className="mt-1 text-white/80 text-xs font-normal leading-snug">
                         {[s.title, s.instructor].filter(Boolean).join(" · ")}
                       </p>
                     )}
