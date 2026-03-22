@@ -15,7 +15,15 @@ function countCompleted(data: DayData, waterGoal: number, customMedIds: string[]
   if (data.smoothieEaten ?? false) n++;
   if (data.snackEaten) n++;
   if (data.waterMl >= waterGoal) n++;
-  if (data.workoutMinutes != null) n++;
+  if (
+    data.workoutMinutes != null ||
+    (data.workoutSessions?.length ?? 0) > 0 ||
+    data.workoutCoach?.golfToday ||
+    (data.manualSwimMinutes != null && data.manualSwimMinutes > 0) ||
+    data.manualOtherActivity != null
+  ) {
+    n++;
+  }
   if (data.walkDone) n++;
   return n;
 }

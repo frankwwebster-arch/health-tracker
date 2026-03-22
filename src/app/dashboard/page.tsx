@@ -87,13 +87,29 @@ export default function DashboardPage() {
     }
     if (data.waterMl >= waterGoal) waterHit++;
     if (data.lunchEaten) lunchLogged++;
-    if (data.workoutMinutes != null || data.walkDone) movementDays++;
+    if (
+      data.workoutMinutes != null ||
+      (data.workoutSessions?.length ?? 0) > 0 ||
+      data.workoutCoach?.golfToday ||
+      (data.manualSwimMinutes != null && data.manualSwimMinutes > 0) ||
+      data.manualOtherActivity != null ||
+      data.walkDone
+    ) {
+      movementDays++;
+    }
     if (data.bedtime && data.wakeTime) {
       sleepHoursList.push(sleepHours(data.bedtime, data.wakeTime));
     }
     if (data.weightKg != null) weightList.push(data.weightKg);
-    if (data.workoutMinutes != null) {
-      exerciseMinutesTotal += data.workoutMinutes;
+    const swimOtherMin =
+      (data.manualSwimMinutes ?? 0) + (data.manualOtherActivity?.minutes ?? 0);
+    if (data.workoutMinutes != null) exerciseMinutesTotal += data.workoutMinutes;
+    exerciseMinutesTotal += swimOtherMin;
+    if (
+      data.workoutMinutes != null ||
+      swimOtherMin > 0 ||
+      data.workoutCoach?.golfToday
+    ) {
       exerciseDays++;
     }
     if (data.stepsCount != null) stepsList.push(data.stepsCount);

@@ -47,6 +47,10 @@ export interface DayData {
   workoutMinutes: number | null; // total minutes (from presets or Peloton sessions)
   /** Per-session breakdown when synced from Peloton or multiple workouts */
   workoutSessions?: PelotonWorkoutSession[];
+  /** Phase A — manual swim minutes (Today); separate from Peloton / Coach `workoutMinutes` */
+  manualSwimMinutes?: number | null;
+  /** Phase A — manual named activity + minutes (not reusable presets yet) */
+  manualOtherActivity?: { name: string; minutes: number } | null;
   walkDone: boolean;
   stepsCount: number | null;
   weightKg: number | null;
@@ -395,6 +399,8 @@ export function createEmptyDayData(): DayData {
     waterMl: 0,
     waterLog: [],
     workoutMinutes: null,
+    manualSwimMinutes: null,
+    manualOtherActivity: null,
     walkDone: false,
     stepsCount: null,
     weightKg: null,
