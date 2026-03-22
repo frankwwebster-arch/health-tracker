@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DayData, WorkoutCoachPostLog } from "@/types";
+import type {
+  DayData,
+  WorkoutCoachBlock,
+  WorkoutCoachLiveSession,
+  WorkoutCoachPostLog,
+} from "@/types";
 import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
 import { computeFlags, decideWorkout } from "@/lib/workout-coach/decision-engine";
@@ -50,6 +55,34 @@ import {
 import { signalTimerEnd } from "@/lib/workout-coach/timer-sfx";
 
 type UpdateFn = (prev: DayData) => DayData;
+
+/** When a structured block records an extra round completion, append for saved review. */
+function collectNewStructuredExtraRoundCompletions(
+  existing: WorkoutCoachPostLog["structuredExtraRoundCompletions"],
+  prevSession: WorkoutCoachLiveSession | null | undefined,
+  nextSession: WorkoutCoachLiveSession,
+  blocks: WorkoutCoachBlock[]
+): { blockId: string; blockLabel: string }[] {
+  const seen = new Set(existing?.map((e) => e.blockId) ?? []);
+  for (const [, s] of Object.entries(prevSession?.blockStates ?? {})) {
+    if (s.blockType === "structured_rounds" && s.extraRoundState === "completed") {
+      seen.add(s.blockId);
+    }
+  }
+  const added: { blockId: string; blockLabel: string }[] = [];
+  for (const [id, s] of Object.entries(nextSession.blockStates)) {
+    if (s.blockType !== "structured_rounds" || s.extraRoundState !== "completed") continue;
+    if (seen.has(id)) continue;
+    const idx = blocks.findIndex((b) => b.id === id);
+    const block = idx >= 0 ? blocks[idx] : undefined;
+    added.push({
+      blockId: id,
+      blockLabel: block ? fixedRoundsBlockHeader(block, idx) : id,
+    });
+    seen.add(id);
+  }
+  return added;
+}
 
 interface Props {
   data: DayData;
@@ -143,6 +176,44 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
         ...prev,
         workoutCoach: { ...prev.workoutCoach, ...patch },
       }));
+    },
+    [update]
+  );
+
+  const handleLiveSessionUpdate = useCallback(
+    (nextSession: WorkoutCoachLiveSession) => {
+      update((prev) => {
+        const c = prev.workoutCoach ?? {};
+        const w = c.workout;
+        if (!w?.id) {
+          return { ...prev, workoutCoach: { ...c, liveSession: nextSession } };
+        }
+        const blocks = normalizeWorkoutBlocks(w.blocks, { id: w.id, generatedAt: w.generatedAt });
+        const additions = collectNewStructuredExtraRoundCompletions(
+          c.postLog?.structuredExtraRoundCompletions,
+          c.liveSession,
+          nextSession,
+          blocks
+        );
+        return {
+          ...prev,
+          workoutCoach: {
+            ...c,
+            liveSession: nextSession,
+            ...(additions.length > 0
+              ? {
+                  postLog: {
+                    ...c.postLog,
+                    structuredExtraRoundCompletions: [
+                      ...(c.postLog?.structuredExtraRoundCompletions ?? []),
+                      ...additions,
+                    ],
+                  },
+                }
+              : {}),
+          },
+        };
+      });
     },
     [update]
   );
@@ -672,6 +743,12 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
               <p className="text-sm text-emerald-800/90 mt-2">
                 Save or discard below — your choice is remembered for the day.
               </p>
+              {(postLog?.structuredExtraRoundCompletions?.length ?? 0) > 0 && (
+                <p className="text-xs text-emerald-800/90 mt-3 font-medium">
+                  Extra round completed:{" "}
+                  {postLog!.structuredExtraRoundCompletions!.map((x) => x.blockLabel).join(", ")}
+                </p>
+              )}
             </div>
           )}
           {!workoutSessionEnded &&
@@ -699,7 +776,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                     <RestTimerDock
                       rest={liveSession.restTimer}
                       session={liveSession}
-                      onSession={(next) => setCoach({ liveSession: next })}
+                      onSession={handleLiveSessionUpdate}
                     />
                   </div>
                 );
@@ -717,7 +794,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                     total={blocksForSession.length}
                     live={live}
                     session={liveSession}
-                    onSession={(next) => setCoach({ liveSession: next })}
+                    onSession={handleLiveSessionUpdate}
                   />
                 </div>
               );
@@ -886,6 +963,7 @@ function PostWorkoutForm({
 
   const persist = () => {
     onSave({
+      ...postLog,
       roundsAmrap: rounds === "" ? null : Number(rounds),
       topSet,
       notes: notes.trim() || undefined,
@@ -904,6 +982,17 @@ function PostWorkoutForm({
         <span className="text-xs font-normal text-slate-400">Optional</span>
       </summary>
       <div className="space-y-3 mt-4 pt-4 border-t border-slate-200">
+        {postLog?.structuredExtraRoundCompletions &&
+          postLog.structuredExtraRoundCompletions.length > 0 && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-950">
+              <p className="font-semibold text-emerald-900">Extra round completed (structured blocks)</p>
+              <ul className="list-disc list-inside mt-1 text-emerald-800">
+                {postLog.structuredExtraRoundCompletions.map((x) => (
+                  <li key={x.blockId}>{x.blockLabel}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         <label className="block">
           <span className="text-sm font-medium text-slate-800">Rounds / notes</span>
           <input

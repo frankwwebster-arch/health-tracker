@@ -125,10 +125,17 @@ export type StructuredRoundsLiveStatus =
   | "not_started"
   | "active"
   | "rounds_complete_pending_decision"
+  /** User chose "Do extra round"; show until "Extra round complete". */
+  | "extra_round_in_progress"
   | "rest_started"
   | "completed";
 
-export type StructuredExtraRoundState = "unavailable" | "available" | "armed" | "completed";
+export type StructuredExtraRoundState =
+  | "unavailable"
+  | "available"
+  /** User is performing the optional extra round (no arming step). */
+  | "in_progress"
+  | "completed";
 
 export interface StructuredRoundsLiveState {
   blockId: string;
@@ -190,6 +197,8 @@ export interface WorkoutCoachPostLog {
   garminDurationMin?: number | null;
   mood?: "good" | "flat" | "tired" | null;
   energy?: "high" | "ok" | "low" | null;
+  /** Structured blocks where the user completed an optional extra round (saved review). */
+  structuredExtraRoundCompletions?: { blockId: string; blockLabel: string }[];
 }
 
 /** Per-day state for the Workout Coach panel */

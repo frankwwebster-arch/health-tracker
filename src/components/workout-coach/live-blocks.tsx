@@ -57,6 +57,17 @@ function normalizeLiveForRouter(live: WorkoutCoachBlockLiveState): WorkoutCoachB
   if (live.blockType === "structured_rounds" && live.status === "rest_started") {
     return { ...live, status: "completed" };
   }
+  // Legacy: old "armed" two-tap flow → single in-progress extra round
+  if (live.blockType === "structured_rounds") {
+    const er = live.extraRoundState as string;
+    if (er === "armed") {
+      return {
+        ...live,
+        status: "extra_round_in_progress",
+        extraRoundState: "in_progress",
+      };
+    }
+  }
   return live;
 }
 
@@ -339,21 +350,24 @@ function StructuredRoundsBlock({
     }
   };
 
-  const handleStartRest = () => {
+  const handleBeginRest = () => {
     onSession(structuredStartRest(session, block.id));
   };
 
-  const handleExtraRoundTap = () => {
-    if (live.extraRoundState === "available") {
-      patch({ ...live, extraRoundState: "armed" });
-      return;
-    }
-    if (live.extraRoundState === "armed") {
-      onSession(structuredCompleteExtraRoundAndStartRest(session, block.id));
-    }
+  const handleDoExtraRound = () => {
+    patch({
+      ...live,
+      status: "extra_round_in_progress",
+      extraRoundState: "in_progress",
+    });
   };
 
-  const pending = live.status === "rounds_complete_pending_decision";
+  const handleExtraRoundComplete = () => {
+    onSession(structuredCompleteExtraRoundAndStartRest(session, block.id));
+  };
+
+  const pendingDecision = live.status === "rounds_complete_pending_decision";
+  const inExtraRound = live.status === "extra_round_in_progress";
   const showMainRoundButton =
     live.status === "not_started" ||
     (live.status === "active" && live.completedRounds < live.targetRounds);
@@ -362,7 +376,7 @@ function StructuredRoundsBlock({
     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-1 min-w-0 max-w-full">
       <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
         <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">Rounds</span>
-        <span className="text-[10px] text-emerald-800">Rounds · rest or Extra Round</span>
+        <span className="text-[10px] text-emerald-800">Rounds · Begin rest or extra round</span>
       </div>
       <div className="rounded-xl border border-emerald-100 bg-white p-3 space-y-2">
         <div className="flex justify-start items-start gap-2 min-w-0">
@@ -398,22 +412,36 @@ function StructuredRoundsBlock({
           </button>
         )}
 
-        {pending && (
+        {pendingDecision && (
           <div className="space-y-2 pt-2 border-t border-emerald-200">
             <p className="text-sm font-extrabold text-emerald-950 text-center">Rounds complete</p>
             <button
               type="button"
-              onClick={handleStartRest}
-              className="w-full min-h-[48px] rounded-2xl bg-slate-900 text-white font-extrabold text-sm"
+              onClick={handleBeginRest}
+              className="w-full min-h-[48px] rounded-2xl bg-red-600 text-white font-extrabold text-sm hover:bg-red-700 active:scale-[0.99]"
             >
-              Start rest
+              Begin rest
             </button>
             <button
               type="button"
-              onClick={handleExtraRoundTap}
-              className="w-full min-h-[48px] rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/80 text-emerald-950 font-bold text-sm"
+              onClick={handleDoExtraRound}
+              className="w-full min-h-[48px] rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/80 text-emerald-950 font-bold text-sm active:scale-[0.99]"
             >
-              {live.extraRoundState === "armed" ? "Extra Round done" : "Extra Round"}
+              Do extra round
+            </button>
+          </div>
+        )}
+        {inExtraRound && (
+          <div className="space-y-2 pt-2 border-t border-emerald-200">
+            <p className="text-sm text-center text-emerald-900">
+              Extra round in progress — finish when ready.
+            </p>
+            <button
+              type="button"
+              onClick={handleExtraRoundComplete}
+              className="w-full min-h-[48px] rounded-2xl bg-emerald-700 text-white font-extrabold text-sm active:scale-[0.99]"
+            >
+              Extra round
             </button>
           </div>
         )}
