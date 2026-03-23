@@ -478,9 +478,9 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   }, [isLiveWorkoutActive, blocksForSession, activeBlockIndex]);
 
   const showQuickTimersInDock = useMemo(() => {
-    if (!workout) return true;
+    if (!workout) return false;
     if (workoutSessionEnded) return false;
-    if (!isLiveWorkoutActive) return true;
+    if (!isLiveWorkoutActive) return false;
     if (liveSession?.restTimer?.active) return false;
     const block = blocksForSession[activeBlockIndex];
     if (!block) return false;
@@ -505,9 +505,9 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   /** Fixed thumb dock for all coach actions on today (Begin / End / timers / Save / Generate). */
   const showThumbDock = isToday;
 
-  /** Scroll padding — room for thumb-zone dock (live workout + completion + generate). */
+  /** Scroll padding — room for thumb-zone dock without large dead space on mobile. */
   const scrollPad = isToday
-    ? "pb-[calc(20rem+env(safe-area-inset-bottom))]"
+    ? "pb-[calc(12rem+env(safe-area-inset-bottom))]"
     : "pb-10";
 
   const handleSaveWorkout = useCallback(() => {
@@ -625,7 +625,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       >
         {/* 1 — Status only (no actions — thumb zone is the dock) */}
         <section
-          className={`sticky top-0 z-20 rounded-2xl border-2 p-4 sm:p-5 ${STATUS_CARD_STYLES[statusTone]} shadow-md`}
+          className={`sticky top-0 z-0 rounded-2xl border-2 p-4 sm:p-5 ${STATUS_CARD_STYLES[statusTone]} shadow-md`}
           aria-live="polite"
         >
           <div className="flex items-start gap-3">
@@ -653,7 +653,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       )}
 
       {/* Optional context — grey, not in the 3-second path */}
-      {isToday && (
+      {isToday && !workout && !isLiveWorkoutActive && (
         <details className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-slate-700 group">
           <summary className="cursor-pointer text-sm font-semibold text-slate-600 list-none flex items-center justify-between [&::-webkit-details-marker]:hidden">
             <span>More context</span>
@@ -684,7 +684,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500 mb-2">Walking load</p>
+              <p className="text-xs font-medium text-slate-500 mb-2">Mood (latest input)</p>
               <div className="flex flex-wrap gap-2">
                 {(["low", "medium", "high"] as const).map((s) => (
                   <button
@@ -849,7 +849,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
             )}
             {workout && !workoutSessionEnded && !isLiveWorkoutActive && (
               <div className="space-y-3">
-                <QuickTimersBar visible={true} />
                 <button
                   type="button"
                   onClick={handleBeginSession}
@@ -939,7 +938,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                   Apply coach toggles
                 </button>
               )}
-            {!workout && <QuickTimersBar visible={true} />}
+            {!workout && <QuickTimersBar visible={false} />}
           </div>
         </div>
       )}

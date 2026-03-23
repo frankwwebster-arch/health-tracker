@@ -368,7 +368,8 @@ export function stepWorkoutStateMachine(
 /** Structured: Start Rest — block marked complete immediately (green/collapsed), then 2 min rest (manual semantics). */
 export function structuredStartRest(
   session: WorkoutCoachLiveSession,
-  blockId: string
+  blockId: string,
+  blocks: WorkoutCoachBlock[]
 ): WorkoutCoachLiveSession {
   const live = session.blockStates[blockId] as StructuredRoundsLiveState;
   const next: StructuredRoundsLiveState = {
@@ -377,7 +378,12 @@ export function structuredStartRest(
     extraRoundState: "unavailable",
   };
   const blockStates = { ...session.blockStates, [blockId]: next };
-  let s: WorkoutCoachLiveSession = { ...session, blockStates };
+  const s: WorkoutCoachLiveSession = { ...session, blockStates };
+  const idx = blocks.findIndex((b) => b.id === blockId);
+  const nextBlock = idx >= 0 ? blocks[idx + 1] : undefined;
+  if (nextBlock?.blockType === "cooldown_timed") {
+    return { ...s, activeBlockIndex: idx + 1 };
+  }
   return activateRestTimer(s, blockId, false);
 }
 
@@ -409,7 +415,8 @@ export function structuredSkipToNextPhase(
 /** Structured: extra round done — block complete, auto-started rest. */
 export function structuredCompleteExtraRoundAndStartRest(
   session: WorkoutCoachLiveSession,
-  blockId: string
+  blockId: string,
+  blocks: WorkoutCoachBlock[]
 ): WorkoutCoachLiveSession {
   const live = session.blockStates[blockId] as StructuredRoundsLiveState;
   const next: StructuredRoundsLiveState = {
@@ -418,7 +425,12 @@ export function structuredCompleteExtraRoundAndStartRest(
     extraRoundState: "completed",
   };
   const blockStates = { ...session.blockStates, [blockId]: next };
-  let s: WorkoutCoachLiveSession = { ...session, blockStates };
+  const s: WorkoutCoachLiveSession = { ...session, blockStates };
+  const idx = blocks.findIndex((b) => b.id === blockId);
+  const nextBlock = idx >= 0 ? blocks[idx + 1] : undefined;
+  if (nextBlock?.blockType === "cooldown_timed") {
+    return { ...s, activeBlockIndex: idx + 1 };
+  }
   return activateRestTimer(s, blockId, true);
 }
 

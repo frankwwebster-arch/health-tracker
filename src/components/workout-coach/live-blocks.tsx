@@ -13,6 +13,7 @@ import type {
 import {
   fixedRoundsBlockHeader,
   formatExerciseLineConcise,
+  isFixedRoundsBlock,
   timedBlockDisplayTitle,
 } from "@/lib/workout-coach/block-labels";
 import {
@@ -53,6 +54,7 @@ type BaseProps = {
   blocks: WorkoutCoachBlock[];
   index: number;
   total: number;
+  nextBlockTitle?: string;
   session: WorkoutCoachLiveSession;
   onSession: SessionUpdater;
 };
@@ -115,6 +117,7 @@ function TimedWorkBlock({
   session,
   onSession,
   variant,
+  nextBlockTitle,
 }: BaseProps & {
   live: WarmupCooldownTimedLiveState;
   variant: "warmup" | "cooldown";
@@ -184,6 +187,9 @@ function TimedWorkBlock({
         <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words [overflow-wrap:anywhere] leading-snug">
           {title}
         </h3>
+        {nextBlockTitle && (
+          <p className="text-xs text-slate-500 mb-2">Next: {nextBlockTitle}</p>
+        )}
         <ul className="space-y-1.5 mb-3">
           {block.exercises.map((ex, i) => (
             <li key={i} className="text-sm min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
@@ -235,7 +241,7 @@ function TimedWorkBlock({
   );
 }
 
-function AmrapTimedBlock({ block, blocks, index, total, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
+function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
   const rem = deriveTimedRemainingSeconds(live);
   const done = live.status === "completed";
 
@@ -297,6 +303,9 @@ function AmrapTimedBlock({ block, blocks, index, total, live, session, onSession
         <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words [overflow-wrap:anywhere] leading-snug">
           {title}
         </h3>
+        {nextBlockTitle && (
+          <p className="text-xs text-slate-500 mb-2">Next: {nextBlockTitle}</p>
+        )}
         <ul className="space-y-1.5 mb-3">
           {block.exercises.map((ex, i) => (
             <li key={i} className="text-sm min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
@@ -356,6 +365,7 @@ function StructuredRoundsBlock({
   live,
   session,
   onSession,
+  nextBlockTitle,
 }: BaseProps & { live: StructuredRoundsLiveState }) {
   const patch = useCallback(
     (next: StructuredRoundsLiveState) => {
@@ -384,7 +394,7 @@ function StructuredRoundsBlock({
   };
 
   const handleBeginRest = () => {
-    onSession(structuredStartRest(session, block.id));
+    onSession(structuredStartRest(session, block.id, blocks));
   };
 
   const handleDoExtraRound = () => {
@@ -396,7 +406,7 @@ function StructuredRoundsBlock({
   };
 
   const handleExtraRoundComplete = () => {
-    onSession(structuredCompleteExtraRoundAndStartRest(session, block.id));
+    onSession(structuredCompleteExtraRoundAndStartRest(session, block.id, blocks));
   };
 
   const handleSkip = () => {
@@ -405,6 +415,7 @@ function StructuredRoundsBlock({
 
   const pendingDecision = live.status === "rounds_complete_pending_decision";
   const inExtraRound = live.status === "extra_round_in_progress";
+  const nextIsCooldown = blocks[index + 1]?.blockType === "cooldown_timed";
   const showMainRoundButton =
     live.status === "not_started" ||
     (live.status === "active" && live.completedRounds < live.targetRounds);
@@ -424,6 +435,9 @@ function StructuredRoundsBlock({
             {index + 1}/{total}
           </span>
         </div>
+        {nextBlockTitle && (
+          <p className="text-xs text-slate-500">Next: {nextBlockTitle}</p>
+        )}
         {live.status === "active" && live.completedRounds < live.targetRounds && (
           <p className="text-xs font-bold text-emerald-900">
             Round {live.completedRounds + 1} / {live.targetRounds}
@@ -452,13 +466,15 @@ function StructuredRoundsBlock({
         {pendingDecision && (
           <div className="space-y-2 pt-2 border-t border-emerald-200">
             <p className="text-sm font-extrabold text-emerald-950 text-center">Rounds complete</p>
-            <button
-              type="button"
-              onClick={handleBeginRest}
-              className="w-full min-h-[48px] rounded-2xl bg-red-600 text-white font-extrabold text-sm hover:bg-red-700 active:scale-[0.99]"
-            >
-              Begin rest
-            </button>
+            {!nextIsCooldown && (
+              <button
+                type="button"
+                onClick={handleBeginRest}
+                className="w-full min-h-[48px] rounded-2xl bg-red-600 text-white font-extrabold text-sm hover:bg-red-700 active:scale-[0.99]"
+              >
+                Begin rest
+              </button>
+            )}
             <button
               type="button"
               onClick={handleDoExtraRound}
@@ -506,6 +522,12 @@ export function LiveBlockRouter({
   onSession,
 }: BaseProps & { live: WorkoutCoachBlockLiveState }) {
   const normalized = normalizeLiveForRouter(live);
+  const next = blocks[index + 1];
+  const nextBlockTitle = next
+    ? isFixedRoundsBlock(next)
+      ? fixedRoundsBlockHeader(next, index + 1)
+      : timedBlockDisplayTitle(next, index + 1)
+    : undefined;
   switch (normalized.blockType) {
     case "warmup_timed":
       return (
@@ -514,6 +536,7 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
+          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
@@ -527,6 +550,7 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
+          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
@@ -535,7 +559,7 @@ export function LiveBlockRouter({
       );
     case "amrap_timed":
       return (
-        <AmrapTimedBlock block={block} blocks={blocks} index={index} total={total} live={normalized} session={session} onSession={onSession} />
+        <AmrapTimedBlock block={block} blocks={blocks} index={index} total={total} nextBlockTitle={nextBlockTitle} live={normalized} session={session} onSession={onSession} />
       );
     case "structured_rounds":
       return (
@@ -544,6 +568,7 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
+          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
