@@ -15,10 +15,6 @@ interface Props {
   dateKey: string;
 }
 
-function pelotonSumFrom(prev: DayData): number {
-  return (prev.workoutSessions ?? []).reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
-}
-
 export function MovementSection({ data, update, dateKey }: Props) {
   const [pelotonSyncing, setPelotonSyncing] = useState(false);
   const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
@@ -45,7 +41,11 @@ export function MovementSection({ data, update, dateKey }: Props) {
           return remainder > 0 ? remainder : null;
         })();
 
-  const isCustom = manualWorkoutMinutesForUi != null && manualWorkoutMinutesForUi > 0;
+  const hasCoachPostLog = data.workoutCoach?.postLog != null;
+  /** Saved Workout Coach duration — read-only on Today (from post-log or coach portion of day total). */
+  const coachMinutesReadOnly: number | null =
+    data.workoutCoach?.postLog?.garminDurationMin ?? manualWorkoutMinutesForUi ?? null;
+  const showCoachMovement = hasCoachPostLog || coachMinutesReadOnly != null;
 
   const golfOn = data.workoutCoach?.golfToday === true;
   const swimMin = data.manualSwimMinutes ?? null;
@@ -59,7 +59,6 @@ export function MovementSection({ data, update, dateKey }: Props) {
   const hasSavedWorkout =
     data.workoutMinutes != null || hasSessions || hasPhaseAMovement;
 
-  const hasCoachPostLog = data.workoutCoach?.postLog != null;
   const hasManualWorkoutEntry = !hasSessions
     ? data.workoutMinutes != null
     : manualWorkoutMinutesForUi != null;
@@ -176,58 +175,76 @@ export function MovementSection({ data, update, dateKey }: Props) {
             </button>
           </div>
 
-          {/* Workout Coach minutes (separate from Phase A) */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <label
-              className={`flex min-w-0 flex-1 items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                isCustom
-                  ? "bg-accent text-white border-accent shadow-sm"
-                  : "border-border bg-white/80 hover:bg-white"
-              }`}
-            >
-              <span className={isCustom ? "text-white/90 shrink-0" : "text-muted shrink-0"}>Coach:</span>
-              <input
-                type="number"
-                min={1}
-                max={240}
-                placeholder="min"
-                value={manualWorkoutMinutesForUi != null ? manualWorkoutMinutesForUi : ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "") {
-                    update((prev) => {
-                      const pts = pelotonSumFrom(prev);
-                      const hasPel = (prev.workoutSessions ?? []).length > 0;
-                      return {
-                        ...prev,
-                        workoutMinutes: hasPel ? (pts > 0 ? pts : null) : null,
-                      };
-                    });
-                  } else {
-                    const n = Math.min(240, Math.max(1, parseInt(v, 10) || 0));
-                    update((prev) => {
-                      const pts = pelotonSumFrom(prev);
-                      const hasPel = (prev.workoutSessions ?? []).length > 0;
-                      return {
-                        ...prev,
-                        workoutMinutes: hasPel ? pts + n : n,
-                      };
-                    });
-                  }
-                }}
-                className={`min-w-0 w-16 rounded-lg border-0 bg-transparent px-1 py-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isCustom ? "text-white placeholder:text-white/60" : "text-gray-800 placeholder:text-muted"}`}
-              />
-            </label>
-            {hasPlatformWorkoutToDelete && !pendingDeleteWorkout && (
-              <button
-                type="button"
-                onClick={() => setPendingDeleteWorkout(true)}
-                className="shrink-0 min-h-[44px] px-3 rounded-xl text-sm font-medium text-red-700 hover:text-red-900 hover:bg-red-50 border border-red-200"
-              >
-                Delete
-              </button>
-            )}
-          </div>
+          {/* Workout Coach — read-only saved duration; delete + confirm grouped here (above Peloton) */}
+          {showCoachMovement && (
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/90 p-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  className={`flex min-w-0 flex-1 items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border ${
+                    hasCoachPostLog
+                      ? "bg-accent text-white border-accent shadow-sm"
+                      : "border-border bg-white text-gray-800"
+                  }`}
+                >
+                  <span className={hasCoachPostLog ? "text-white/90 shrink-0" : "text-muted shrink-0"}>
+                    Coach:
+                  </span>
+                  <span
+                    className={`tabular-nums font-semibold ${hasCoachPostLog ? "text-white" : "text-gray-900"}`}
+                    aria-label="Coach workout minutes"
+                  >
+                    {coachMinutesReadOnly != null ? `${coachMinutesReadOnly} min` : "—"}
+                  </span>
+                </div>
+                {hasPlatformWorkoutToDelete && !pendingDeleteWorkout && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteWorkout(true)}
+                    className="shrink-0 min-h-[44px] px-3 rounded-xl text-sm font-medium text-red-700 hover:text-red-900 hover:bg-red-50 border border-red-200"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+              {hasPlatformWorkoutToDelete && pendingDeleteWorkout && (
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
+                  <span className="text-sm text-amber-800 font-medium">Delete this workout?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      update((prev) => {
+                        const sess = prev.workoutSessions ?? [];
+                        const pelotonSum = sess.reduce(
+                          (sum, s) => sum + (s.durationMinutes ?? 0),
+                          0
+                        );
+                        const keepPeloton = sess.length > 0 && pelotonSum > 0;
+                        return {
+                          ...prev,
+                          workoutMinutes: keepPeloton ? pelotonSum : null,
+                          workoutCoach: {
+                            ...prev.workoutCoach,
+                            postLog: null,
+                          },
+                        };
+                      });
+                      setPendingDeleteWorkout(false);
+                    }}
+                    className="min-h-[44px] px-4 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.99]"
+                  >
+                    Confirm delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteWorkout(false)}
+                    className="min-h-[44px] px-4 rounded-xl text-sm font-medium border border-border bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {hasSessions && (
             <div className="mt-3">
@@ -257,43 +274,6 @@ export function MovementSection({ data, update, dateKey }: Props) {
             </div>
           )}
 
-          {hasPlatformWorkoutToDelete && pendingDeleteWorkout && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-amber-800 font-medium">Delete this workout?</span>
-              <button
-                type="button"
-                onClick={() => {
-                  update((prev) => {
-                    const sess = prev.workoutSessions ?? [];
-                    const pelotonSum = sess.reduce(
-                      (sum, s) => sum + (s.durationMinutes ?? 0),
-                      0
-                    );
-                    const keepPeloton = sess.length > 0 && pelotonSum > 0;
-                    return {
-                      ...prev,
-                      workoutMinutes: keepPeloton ? pelotonSum : null,
-                      workoutCoach: {
-                        ...prev.workoutCoach,
-                        postLog: null,
-                      },
-                    };
-                  });
-                  setPendingDeleteWorkout(false);
-                }}
-                className="min-h-[44px] px-4 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.99]"
-              >
-                Confirm delete
-              </button>
-              <button
-                type="button"
-                onClick={() => setPendingDeleteWorkout(false)}
-                className="min-h-[44px] px-4 rounded-xl text-sm font-medium border border-border bg-white text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"

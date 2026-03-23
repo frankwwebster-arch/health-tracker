@@ -381,6 +381,31 @@ export function structuredStartRest(
   return activateRestTimer(s, blockId, false);
 }
 
+/**
+ * Skip structured block: mark complete and follow normal forward sequence.
+ * Usually enters rest; if next block is cooldown, jump there directly.
+ */
+export function structuredSkipToNextPhase(
+  session: WorkoutCoachLiveSession,
+  blockId: string,
+  blocks: WorkoutCoachBlock[]
+): WorkoutCoachLiveSession {
+  const live = session.blockStates[blockId] as StructuredRoundsLiveState;
+  const next: StructuredRoundsLiveState = {
+    ...live,
+    status: "completed",
+    extraRoundState: "unavailable",
+  };
+  const blockStates = { ...session.blockStates, [blockId]: next };
+  const s: WorkoutCoachLiveSession = { ...session, blockStates };
+  const idx = blocks.findIndex((b) => b.id === blockId);
+  const nextBlock = idx >= 0 ? blocks[idx + 1] : undefined;
+  if (nextBlock?.blockType === "cooldown_timed") {
+    return { ...s, activeBlockIndex: idx + 1 };
+  }
+  return activateRestTimer(s, blockId, false);
+}
+
 /** Structured: extra round done — block complete, auto-started rest. */
 export function structuredCompleteExtraRoundAndStartRest(
   session: WorkoutCoachLiveSession,

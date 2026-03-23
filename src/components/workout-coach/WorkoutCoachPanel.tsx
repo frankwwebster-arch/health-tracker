@@ -777,6 +777,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                       rest={liveSession.restTimer}
                       session={liveSession}
                       onSession={handleLiveSessionUpdate}
+                      blocks={blocksForSession}
                     />
                   </div>
                 );
@@ -790,6 +791,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 >
                   <LiveBlockRouter
                     block={block}
+                    blocks={blocksForSession}
                     index={idx}
                     total={blocksForSession.length}
                     live={live}

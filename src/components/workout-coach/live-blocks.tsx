@@ -16,12 +16,16 @@ import {
   timedBlockDisplayTitle,
 } from "@/lib/workout-coach/block-labels";
 import {
+  completeAmrapWorkAndStartRest,
+  completeRestTimer,
+  completeWarmupCooldownWork,
   deriveRestRemainingSeconds,
   deriveTimedRemainingSeconds,
   patchRestTimer,
   patchStructuredState,
   patchTimedState,
   structuredCompleteExtraRoundAndStartRest,
+  structuredSkipToNextPhase,
   structuredStartRest,
 } from "@/lib/workout-coach/live-session";
 
@@ -46,6 +50,7 @@ type SessionUpdater = (next: WorkoutCoachLiveSession) => void;
 
 type BaseProps = {
   block: WorkoutCoachBlock;
+  blocks: WorkoutCoachBlock[];
   index: number;
   total: number;
   session: WorkoutCoachLiveSession;
@@ -103,6 +108,7 @@ export function WorkoutRestTimerBar({
 
 function TimedWorkBlock({
   block,
+  blocks,
   index,
   total,
   live,
@@ -150,6 +156,10 @@ function TimedWorkBlock({
         endAtEpochMs: Date.now() + rem * 1000,
       });
     }
+  };
+
+  const handleSkip = () => {
+    onSession(completeWarmupCooldownWork(session, block.id, blocks));
   };
 
   const done = live.status === "completed";
@@ -210,13 +220,22 @@ function TimedWorkBlock({
           Resume · {formatMmSs(rem)}
         </button>
       )}
+      {!done && (
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="mt-2 w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
+        >
+          Skip
+        </button>
+      )}
       {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
       </div>
     </div>
   );
 }
 
-function AmrapTimedBlock({ block, index, total, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
+function AmrapTimedBlock({ block, blocks, index, total, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
   const rem = deriveTimedRemainingSeconds(live);
   const done = live.status === "completed";
 
@@ -253,6 +272,10 @@ function AmrapTimedBlock({ block, index, total, live, session, onSession }: Base
       remainingSeconds: rem,
       endAtEpochMs: Date.now() + rem * 1000,
     });
+  };
+
+  const handleSkip = () => {
+    onSession(completeAmrapWorkAndStartRest(session, block.id, blocks));
   };
 
   const title = timedBlockDisplayTitle(block, index);
@@ -310,6 +333,15 @@ function AmrapTimedBlock({ block, index, total, live, session, onSession }: Base
             Resume · {formatMmSs(rem)}
           </button>
         )}
+        {!done && (
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="mt-2 w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
+          >
+            Skip
+          </button>
+        )}
         {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
       </div>
     </div>
@@ -318,6 +350,7 @@ function AmrapTimedBlock({ block, index, total, live, session, onSession }: Base
 
 function StructuredRoundsBlock({
   block,
+  blocks,
   index,
   total,
   live,
@@ -364,6 +397,10 @@ function StructuredRoundsBlock({
 
   const handleExtraRoundComplete = () => {
     onSession(structuredCompleteExtraRoundAndStartRest(session, block.id));
+  };
+
+  const handleSkip = () => {
+    onSession(structuredSkipToNextPhase(session, block.id, blocks));
   };
 
   const pendingDecision = live.status === "rounds_complete_pending_decision";
@@ -445,6 +482,15 @@ function StructuredRoundsBlock({
             </button>
           </div>
         )}
+        {live.status !== "completed" && (
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
+          >
+            Skip
+          </button>
+        )}
       </div>
     </div>
   );
@@ -452,6 +498,7 @@ function StructuredRoundsBlock({
 
 export function LiveBlockRouter({
   block,
+  blocks,
   index,
   total,
   live,
@@ -464,6 +511,7 @@ export function LiveBlockRouter({
       return (
         <TimedWorkBlock
           block={block}
+          blocks={blocks}
           index={index}
           total={total}
           live={normalized}
@@ -476,6 +524,7 @@ export function LiveBlockRouter({
       return (
         <TimedWorkBlock
           block={block}
+          blocks={blocks}
           index={index}
           total={total}
           live={normalized}
@@ -486,12 +535,13 @@ export function LiveBlockRouter({
       );
     case "amrap_timed":
       return (
-        <AmrapTimedBlock block={block} index={index} total={total} live={normalized} session={session} onSession={onSession} />
+        <AmrapTimedBlock block={block} blocks={blocks} index={index} total={total} live={normalized} session={session} onSession={onSession} />
       );
     case "structured_rounds":
       return (
         <StructuredRoundsBlock
           block={block}
+          blocks={blocks}
           index={index}
           total={total}
           live={normalized}
@@ -508,10 +558,12 @@ export function RestTimerDock({
   rest,
   onSession,
   session,
+  blocks,
 }: {
   rest: WorkoutCoachRestTimer;
   session: WorkoutCoachLiveSession;
   onSession: SessionUpdater;
+  blocks: WorkoutCoachBlock[];
 }) {
   const rem = deriveRestRemainingSeconds(rest);
 
@@ -538,5 +590,20 @@ export function RestTimerDock({
     );
   };
 
-  return <WorkoutRestTimerBar rest={rest} onPause={pause} onResume={resume} />;
+  const skip = () => {
+    onSession(completeRestTimer(session, blocks));
+  };
+
+  return (
+    <div className="space-y-2">
+      <WorkoutRestTimerBar rest={rest} onPause={pause} onResume={resume} />
+      <button
+        type="button"
+        onClick={skip}
+        className="w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
+      >
+        Skip
+      </button>
+    </div>
+  );
 }
