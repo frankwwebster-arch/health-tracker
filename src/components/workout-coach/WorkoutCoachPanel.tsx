@@ -11,8 +11,6 @@ import { getAdjacentDateKey, getDateKey } from "@/types";
 import { generateWorkout } from "@/lib/workout-coach/generate";
 import { computeFlags, decideWorkout } from "@/lib/workout-coach/decision-engine";
 import {
-  hasSwimToday,
-  isSwimPelotonSession,
   lastWorkoutTypeLabel,
 } from "@/lib/workout-coach/peloton";
 import { QuickTimersBar } from "./QuickTimers";
@@ -260,47 +258,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     });
   }, [dateKey, workout?.id, workout?.generatedAt, update, workout]);
 
-  const toggleSwim = useCallback(() => {
-    const manualSwimId = `manual-swim-${dateKey}`;
-    update((prev) => {
-      const sessions = [...(prev.workoutSessions ?? [])];
-      const manualIdx = sessions.findIndex((s) => s.id === manualSwimId);
-      const hadManualSession = manualIdx >= 0;
-      const flagOn = prev.workoutCoach?.swimToday === true;
-
-      if (hadManualSession || flagOn) {
-        const nextSessions = sessions.filter((s) => s.id !== manualSwimId);
-        return {
-          ...prev,
-          workoutSessions: nextSessions.length ? nextSessions : undefined,
-          workoutCoach: { ...prev.workoutCoach, swimToday: false },
-        };
-      }
-
-      const alreadyHasSwimSession = sessions.some(isSwimPelotonSession);
-      if (alreadyHasSwimSession) {
-        return {
-          ...prev,
-          workoutCoach: { ...prev.workoutCoach, swimToday: true },
-        };
-      }
-
-      if (!sessions.some((s) => s.id === manualSwimId)) {
-        sessions.push({
-          id: manualSwimId,
-          discipline: "Swim",
-          title: "Swim",
-          durationMinutes: 0,
-        });
-      }
-      return {
-        ...prev,
-        workoutSessions: sessions,
-        workoutCoach: { ...prev.workoutCoach, swimToday: true },
-      };
-    });
-  }, [dateKey, update]);
-
   const handleGenerate = async () => {
     if (!settings) return;
     const recoveryMode = decision.outcome === "consecutive_training_warning";
@@ -320,24 +277,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
       ...(recoveryMode ? { preferShort: true, preferLowEnergy: true } : {}),
     });
     await setSettings({ ...settings, workoutCoachRotation: result.rotation });
-  };
-
-  const toggleShort = () => setCoach({ preferShort: !coach.preferShort });
-  const toggleLow = () => setCoach({ preferLowEnergy: !coach.preferLowEnergy });
-
-  const handleApplySuggestion = () => {
-    if (decision.outcome === "strength") {
-      setCoach({
-        preferShort: decision.preferShort,
-        preferLowEnergy: decision.preferLowEnergy,
-      });
-    }
-    if (decision.outcome === "consecutive_training_warning") {
-      setCoach({
-        preferShort: true,
-        preferLowEnergy: true,
-      });
-    }
   };
 
   const statusTone = getCoachStatusTone(decision, coach.preferLowEnergy ?? false);
@@ -877,77 +816,6 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 Generate workout
               </button>
             )}
-            {!minimalThumbDock && (
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCoach({ manualBootcampToday: !coach.manualBootcampToday })}
-                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                    coach.manualBootcampToday
-                      ? "border-amber-400 bg-amber-100 text-amber-950"
-                      : "border-slate-200 bg-slate-50 text-slate-800"
-                  }`}
-                >
-                  Bootcamp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCoach({ golfToday: !coach.golfToday })}
-                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                    coach.golfToday
-                      ? "border-emerald-400 bg-emerald-100 text-emerald-950"
-                      : "border-slate-200 bg-slate-50 text-slate-800"
-                  }`}
-                >
-                  Golf
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleSwim}
-                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                    hasSwimToday(data)
-                      ? "border-sky-400 bg-sky-100 text-sky-950"
-                      : "border-slate-200 bg-slate-50 text-slate-800"
-                  }`}
-                >
-                  Swim
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleLow}
-                  className={`min-h-[52px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                    coach.preferLowEnergy
-                      ? "border-amber-400 bg-amber-100 text-amber-950"
-                      : "border-slate-200 bg-slate-50 text-slate-800"
-                  }`}
-                >
-                  Low energy
-                </button>
-              </div>
-            )}
-            {!minimalThumbDock && canTrainStrength && (
-              <button
-                type="button"
-                onClick={toggleShort}
-                className={`w-full min-h-[48px] rounded-2xl text-sm font-bold border-2 active:opacity-90 ${
-                  coach.preferShort
-                    ? "border-slate-500 bg-slate-200 text-slate-950"
-                    : "border-slate-200 bg-white text-slate-700"
-                }`}
-              >
-                Short session
-              </button>
-            )}
-            {!minimalThumbDock &&
-              (decision.outcome === "strength" || decision.outcome === "consecutive_training_warning") && (
-                <button
-                  type="button"
-                  onClick={handleApplySuggestion}
-                  className="w-full min-h-[48px] rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 active:bg-slate-100"
-                >
-                  Apply coach toggles
-                </button>
-              )}
             {!workout && <QuickTimersBar visible={false} />}
           </div>
         </div>
