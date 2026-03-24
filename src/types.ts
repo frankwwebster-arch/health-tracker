@@ -102,6 +102,8 @@ export interface WorkoutCoachBlock {
   durationSeconds?: number;
   /** structured_rounds — mirrors roundTarget when present */
   targetRounds?: number;
+  /** Planned rest between rounds for structured blocks (planning/display only, not auto timer). */
+  plannedRoundRestSeconds?: number;
 }
 
 /** ---- Workout Coach live session (persisted; survives refresh) ---- */

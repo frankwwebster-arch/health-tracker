@@ -496,7 +496,17 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
   ]);
 
   const workoutTotalMin = useMemo(
-    () => blocksForSession.reduce((sum, b) => sum + b.minutes, 0),
+    () => {
+      const total = blocksForSession.reduce((sum, b) => {
+        if (b.blockType !== "structured_rounds") return sum + b.minutes;
+        const rounds = b.targetRounds ?? b.roundTarget ?? 0;
+        const restSec = b.plannedRoundRestSeconds ?? 0;
+        if (rounds <= 1 || restSec <= 0) return sum + b.minutes;
+        const restMinutes = ((rounds - 1) * restSec) / 60;
+        return sum + b.minutes + restMinutes;
+      }, 0);
+      return Math.max(1, Math.round(total));
+    },
     [blocksForSession]
   );
   /** Hide Generate / toggles whenever a workout exists (preview or in progress; timers stay). */

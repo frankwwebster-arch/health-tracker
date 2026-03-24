@@ -25,12 +25,33 @@ export function clampWarmupCooldownMinutes(raw: number): 4 | 5 | 6 {
 }
 
 /**
- * Warm-up: 3–5 simple activation movements, single explicit duration (4–6 min).
+ * Warm-up: movement + mobility + activation, single explicit duration (4–6 min).
  * Titles and durationSeconds must stay in sync for timers and rest flow.
  */
-export function createDefaultWarmupBlock(minutes: 4 | 5 | 6 = MIN_WARMUP_COOLDOWN_MINUTES): WorkoutCoachBlock {
+export function createDefaultWarmupBlock(
+  minutes: 4 | 5 | 6 = MIN_WARMUP_COOLDOWN_MINUTES,
+  options?: { includeOptionalPelotonBurst?: boolean }
+): WorkoutCoachBlock {
   const m = clampWarmupCooldownMinutes(minutes);
   const sec = m * 60;
+  const includePeloton = options?.includeOptionalPelotonBurst === true;
+  // Keep warm-up focused and compact so total workout variety stays manageable.
+  const warmupExercises: WorkoutCoachBlock["exercises"] = includePeloton
+    ? [
+        { name: "Bodyweight squats", detail: "10 reps" },
+        { name: "World's greatest stretch", detail: "4 reps each side" },
+      ]
+    : [
+        { name: "Bodyweight squats", detail: "10 reps" },
+        { name: "Shoulder circles", detail: "10 each way" },
+        { name: "Dead bug", detail: "6 reps each side" },
+      ];
+  if (options?.includeOptionalPelotonBurst) {
+    warmupExercises.unshift({
+      name: "Optional Peloton easy spin",
+      detail: "2 min easy pace",
+    });
+  }
   return {
     id: newWorkoutBlockId(),
     kind: "warmup",
@@ -38,13 +59,7 @@ export function createDefaultWarmupBlock(minutes: 4 | 5 | 6 = MIN_WARMUP_COOLDOW
     title: `Warm-up — ${m} min`,
     minutes: m,
     durationSeconds: sec,
-    exercises: [
-      { name: "Bodyweight squats", detail: "10 reps" },
-      { name: "Push-ups", detail: "10 reps" },
-      { name: "Plank", detail: "20s hold" },
-      { name: "Arm circles", detail: "shoulder mobility — 10 each way" },
-      { name: "Hip hinges", detail: "10 reps" },
-    ],
+    exercises: warmupExercises,
   };
 }
 

@@ -52,7 +52,7 @@ export const AMRAP_LOWER_PULL: WorkoutCoachExercise[] = [
 export const STRUCTURED_PUSH: WorkoutCoachExercise[] = [
   {
     name: "DB bench press",
-    detail: "{dbBench} · 8–10 reps · 3 sets",
+    detail: "{dbBench} · 8 reps · 3 sets",
   },
   {
     name: "Shoulder press",
@@ -64,7 +64,7 @@ export const STRUCTURED_PUSH: WorkoutCoachExercise[] = [
   },
   {
     name: "Floor press",
-    detail: "{dbBench} · 8–10 reps · pause 1s on floor",
+    detail: "{dbBench} · 8 reps · pause 1s on floor",
   },
 ];
 

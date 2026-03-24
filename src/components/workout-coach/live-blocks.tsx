@@ -187,9 +187,6 @@ function TimedWorkBlock({
         <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words [overflow-wrap:anywhere] leading-snug">
           {title}
         </h3>
-        {nextBlockTitle && (
-          <p className="text-xs text-slate-500 mb-2">Next: {nextBlockTitle}</p>
-        )}
         <ul className="space-y-1.5 mb-3">
           {block.exercises.map((ex, i) => (
             <li key={i} className="text-sm min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
@@ -236,6 +233,9 @@ function TimedWorkBlock({
         </button>
       )}
       {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
+      {nextBlockTitle && (
+        <p className="mt-2 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
+      )}
       </div>
     </div>
   );
@@ -303,9 +303,6 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
         <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words [overflow-wrap:anywhere] leading-snug">
           {title}
         </h3>
-        {nextBlockTitle && (
-          <p className="text-xs text-slate-500 mb-2">Next: {nextBlockTitle}</p>
-        )}
         <ul className="space-y-1.5 mb-3">
           {block.exercises.map((ex, i) => (
             <li key={i} className="text-sm min-w-0 break-words [overflow-wrap:anywhere] text-slate-800">
@@ -352,6 +349,9 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
           </button>
         )}
         {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
+        {nextBlockTitle && (
+          <p className="mt-2 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
+        )}
       </div>
     </div>
   );
@@ -435,9 +435,6 @@ function StructuredRoundsBlock({
             {index + 1}/{total}
           </span>
         </div>
-        {nextBlockTitle && (
-          <p className="text-xs text-slate-500">Next: {nextBlockTitle}</p>
-        )}
         {live.status === "active" && live.completedRounds < live.targetRounds && (
           <p className="text-xs font-bold text-emerald-900">
             Round {live.completedRounds + 1} / {live.targetRounds}
@@ -506,6 +503,9 @@ function StructuredRoundsBlock({
           >
             Skip
           </button>
+        )}
+        {nextBlockTitle && (
+          <p className="pt-1 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
         )}
       </div>
     </div>

@@ -23,6 +23,7 @@ import {
   type Block1PairId,
   type Block2PatternId,
   type Block3PatternId,
+  type WorkoutIntensityProfile,
 } from "./library";
 import {
   advanceRotationBootcampOptional,
@@ -59,6 +60,33 @@ export interface GenerateWorkoutResult {
   rotation: WorkoutCoachRotation;
 }
 
+function focusWorkoutExerciseComplexity(blocks: WorkoutCoachBlock[]): WorkoutCoachBlock[] {
+  const PELOTON_WARMUP_NAME = "Optional Peloton easy spin";
+  return blocks.map((b) => {
+    // Keep cooldown intact.
+    if (b.blockType === "cooldown_timed" || b.kind === "cooldown") return b;
+
+    // Keep warm-up concise but never substitute from other blocks.
+    if (b.blockType === "warmup_timed" || b.kind === "warmup") {
+      const hasPelotonSpin = b.exercises.some((ex) => ex.name === PELOTON_WARMUP_NAME);
+      const warmupCap = hasPelotonSpin ? 4 : 5;
+      return { ...b, exercises: b.exercises.slice(0, warmupCap) };
+    }
+
+    // Main blocks stay block-appropriate; reduce clutter by trimming count only.
+    if (b.blockType === "structured_rounds" || b.kind === "core_circuit") {
+      return { ...b, exercises: b.exercises.slice(0, 4) };
+    }
+
+    // Timed work stays focused.
+    if (b.blockType === "amrap_timed" || b.kind === "amrap" || b.kind === "kb_ladder") {
+      return { ...b, exercises: b.exercises.slice(0, 3) };
+    }
+
+    return b;
+  });
+}
+
 function minutesForBlocks(
   short: boolean,
   low: boolean,
@@ -77,8 +105,10 @@ function coachTimedEdgeMinutes(workoutId: string, salt: number): 4 | 5 | 6 {
   return clampWarmupCooldownMinutes(4 + (Math.abs(h) % 3));
 }
 
-function buildWarmupBlock(workoutId: string): WorkoutCoachBlock {
-  return createDefaultWarmupBlock(coachTimedEdgeMinutes(workoutId, 0));
+function buildWarmupBlock(workoutId: string, includeOptionalPelotonBurst: boolean): WorkoutCoachBlock {
+  return createDefaultWarmupBlock(coachTimedEdgeMinutes(workoutId, 0), {
+    includeOptionalPelotonBurst,
+  });
 }
 
 function standardStrengthBlocks(
@@ -89,15 +119,19 @@ function standardStrengthBlocks(
   b2: Block2PatternId,
   b3: Block3PatternId,
   recoveryMode: boolean,
-  workoutId: string
+  workoutId: string,
+  includeOptionalPelotonBurst: boolean
 ): WorkoutCoachBlock[] {
   const w = resolveEquipment(intensity);
   const m = minutesForBlocks(short, low, recoveryMode);
+  const profile: WorkoutIntensityProfile = recoveryMode ? "recovery" : low ? "low" : "standard";
+  const pushRoundRestSeconds = recoveryMode || low ? 45 : 30;
+  const coreRoundRestSeconds = recoveryMode ? 30 : 20;
 
   const amrapTitle = `${m.b1} min AMRAP`;
 
   return [
-    buildWarmupBlock(workoutId),
+    buildWarmupBlock(workoutId, includeOptionalPelotonBurst),
     {
       id: newWorkoutBlockId(),
       kind: "amrap",
@@ -105,8 +139,8 @@ function standardStrengthBlocks(
       title: amrapTitle,
       minutes: m.b1,
       durationSeconds: m.b1 * 60,
-      exercises: buildBlock1Pair(b1, w),
-      coaching: recoveryMode ? "Easy pace. No grind." : undefined,
+      exercises: buildBlock1Pair(b1, w, profile),
+      coaching: recoveryMode ? "Smooth tempo. Brace hard." : undefined,
     },
     {
       id: newWorkoutBlockId(),
@@ -116,8 +150,9 @@ function standardStrengthBlocks(
       minutes: m.b2,
       roundTarget: ROUND_PUSH,
       targetRounds: ROUND_PUSH,
-      exercises: buildBlock2(b2, w, low),
-      coaching: recoveryMode ? "Light loads. Full rest between sets." : undefined,
+      plannedRoundRestSeconds: pushRoundRestSeconds,
+      exercises: buildBlock2(b2, w, low, profile),
+      coaching: `Rest ${pushRoundRestSeconds}s between rounds.`,
     },
     {
       id: newWorkoutBlockId(),
@@ -127,8 +162,9 @@ function standardStrengthBlocks(
       minutes: m.b3,
       roundTarget: ROUND_CORE,
       targetRounds: ROUND_CORE,
-      exercises: buildBlock3(b3, w),
-      coaching: recoveryMode ? "Controlled reps." : undefined,
+      plannedRoundRestSeconds: coreRoundRestSeconds,
+      exercises: buildBlock3(b3, w, profile),
+      coaching: "Ribs down. Smooth tempo.",
     },
   ];
 }
@@ -136,7 +172,7 @@ function standardStrengthBlocks(
 function ladderBlock(low: boolean, workoutId: string): WorkoutCoachBlock[] {
   const w = resolveEquipment(low ? "low" : "normal");
   return [
-    buildWarmupBlock(workoutId),
+    buildWarmupBlock(workoutId, true),
     {
       id: newWorkoutBlockId(),
       kind: "kb_ladder",
@@ -159,6 +195,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
   const recoveryMode = recoveryModeOpt === true;
 
   const bootcampToday = todayHasBootcampLike(today);
+  const includeOptionalPelotonBurst = !bootcampToday;
   const strengthYesterday =
     yesterday != null &&
     ((yesterday.workoutMinutes != null && yesterday.workoutMinutes >= 20) ||
@@ -187,7 +224,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
       generatedAt: Date.now(),
       variant: "short",
       blocks: [
-        buildWarmupBlock(workoutId),
+        buildWarmupBlock(workoutId, includeOptionalPelotonBurst),
         {
           id: newWorkoutBlockId(),
           kind: "core_circuit",
@@ -202,6 +239,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
         createCooldownBlock(workoutId, coachTimedEdgeMinutes(workoutId, 11)),
       ],
     };
+    workout.blocks = focusWorkoutExerciseComplexity(workout.blocks);
     return {
       workout,
       rotation: advanceRotationBootcampOptional(rotation),
@@ -217,6 +255,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
       blocks: [...ladderBlock(low, workoutId), createCooldownBlock(workoutId, coachTimedEdgeMinutes(workoutId, 11))],
       stretchGoal: undefined,
     };
+    workout.blocks = focusWorkoutExerciseComplexity(workout.blocks);
     return {
       workout,
       rotation: advanceRotationLadder(rotation),
@@ -235,7 +274,17 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
 
   const workoutId = newWorkoutBlockId();
   const blocks = [
-    ...standardStrengthBlocks(short, low, intensity, b1, b2, b3, recoveryMode, workoutId),
+    ...standardStrengthBlocks(
+      short,
+      low,
+      intensity,
+      b1,
+      b2,
+      b3,
+      recoveryMode,
+      workoutId,
+      includeOptionalPelotonBurst
+    ),
     createCooldownBlock(workoutId, coachTimedEdgeMinutes(workoutId, 11)),
   ];
   const stretchGoal = undefined;
@@ -244,7 +293,7 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
     id: workoutId,
     generatedAt: Date.now(),
     variant,
-    blocks,
+    blocks: focusWorkoutExerciseComplexity(blocks),
     stretchGoal,
   };
 
