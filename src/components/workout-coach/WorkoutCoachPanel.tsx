@@ -477,6 +477,10 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     setCoach({ workout: null, postLog: null, liveSession: null });
   };
 
+  const handleCancelGeneratedWorkout = () => {
+    setCoach({ workout: null, postLog: null, liveSession: null });
+  };
+
   const handleBeginSession = () => {
     if (process.env.NODE_ENV !== "production") {
       console.debug("[WorkoutCoach] Begin Workout tapped", {
@@ -805,6 +809,22 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                 >
                   Begin workout
                 </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    className="w-full min-h-[44px] rounded-2xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:bg-slate-50 active:scale-[0.99]"
+                  >
+                    Shuffle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelGeneratedWorkout}
+                    className="w-full min-h-[44px] rounded-2xl border border-red-200 bg-white text-red-700 text-sm font-semibold active:bg-red-50 active:scale-[0.99]"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             )}
             {!minimalThumbDock && canTrainStrength && (
