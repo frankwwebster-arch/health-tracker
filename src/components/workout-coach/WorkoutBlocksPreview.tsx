@@ -63,6 +63,12 @@ export function WorkoutBlocksPreview({
         >
           {blocks.map((block, idx) => {
             const structured = isFixedRoundsBlock(block);
+            const isEdgeTimed =
+              block.blockType === "warmup_timed" ||
+              block.blockType === "cooldown_timed" ||
+              block.kind === "warmup" ||
+              block.kind === "cooldown";
+            const useBlue = isEdgeTimed;
             return (
               <div
                 key={block.id}
@@ -70,15 +76,15 @@ export function WorkoutBlocksPreview({
               >
                 <div
                   className={`rounded-2xl border-2 p-1 shadow-sm min-h-[180px] max-w-full min-w-0 overflow-hidden ${
-                    structured
-                      ? "border-emerald-200 bg-emerald-50/40"
-                      : "border-sky-200 bg-sky-50/50"
+                    useBlue
+                      ? "border-sky-200 bg-sky-50/50"
+                      : "border-emerald-200 bg-emerald-50/40"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
                     <span
                       className={`text-[10px] font-bold uppercase tracking-wider ${
-                        structured ? "text-emerald-900" : "text-sky-800"
+                        useBlue ? "text-sky-800" : "text-emerald-900"
                       }`}
                     >
                       {structured ? "Rounds" : "Time"}
@@ -89,7 +95,7 @@ export function WorkoutBlocksPreview({
                   </div>
                   <div
                     className={`rounded-xl p-3 min-h-0 ${
-                      structured ? "bg-white border border-emerald-100" : "bg-white border border-sky-100"
+                      useBlue ? "bg-white border border-sky-100" : "bg-white border border-emerald-100"
                     }`}
                   >
                     <h3 className="text-base font-extrabold text-slate-900 mb-2 break-words hyphens-auto [overflow-wrap:anywhere] leading-snug">

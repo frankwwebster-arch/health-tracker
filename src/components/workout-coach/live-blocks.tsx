@@ -289,14 +289,14 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
   return (
     <div
       className={`rounded-2xl border-2 p-1 transition-colors min-w-0 max-w-full ${
-        done ? "border-emerald-500 bg-emerald-50" : "border-sky-200 bg-sky-50/50"
+        done ? "border-emerald-500 bg-emerald-50" : "border-emerald-200 bg-emerald-50/50"
       }`}
     >
       <div className="flex items-center justify-between gap-2 px-2 pt-2 pb-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-sky-800">Time</span>
-        <span className="text-[10px] text-sky-700">Start · Pause · Resume</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Time</span>
+        <span className="text-[10px] text-emerald-700">Start · Pause · Resume</span>
       </div>
-      <div className={`rounded-xl p-3 ${done ? "bg-emerald-50/80" : "bg-white border border-sky-100"}`}>
+      <div className={`rounded-xl p-3 ${done ? "bg-emerald-50/80" : "bg-white border border-emerald-100"}`}>
         <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">
           {index + 1}/{total}
         </p>
@@ -314,7 +314,7 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
           <button
             type="button"
             onClick={handleStart}
-            className="w-full min-h-[100px] rounded-2xl bg-sky-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99] shadow-md px-3"
+            className="w-full min-h-[100px] rounded-2xl bg-emerald-700 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99] shadow-md px-3"
           >
             <span className="text-base font-extrabold">Start block</span>
             <span className="text-4xl font-black tabular-nums">{formatMmSs(live.remainingSeconds)}</span>
@@ -324,7 +324,7 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
           <button
             type="button"
             onClick={handleTapTimer}
-            className="w-full min-h-[100px] rounded-2xl bg-sky-600 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
+            className="w-full min-h-[100px] rounded-2xl bg-emerald-700 text-white flex flex-col items-center justify-center gap-1 active:scale-[0.99]"
           >
             <span className="text-4xl font-black tabular-nums">{formatMmSs(rem)}</span>
             <span className="text-[10px] font-bold uppercase opacity-90">Pause</span>

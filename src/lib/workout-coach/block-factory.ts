@@ -38,20 +38,18 @@ export function createDefaultWarmupBlock(
   // Keep warm-up focused and compact so total workout variety stays manageable.
   const warmupExercises: WorkoutCoachBlock["exercises"] = includePeloton
     ? [
+        { name: "Optional Peloton easy spin", detail: "2 min easy pace" },
         { name: "Bodyweight squats", detail: "10 reps" },
+        { name: "Shoulder circles", detail: "10 each way" },
         { name: "World's greatest stretch", detail: "4 reps each side" },
       ]
     : [
         { name: "Bodyweight squats", detail: "10 reps" },
         { name: "Shoulder circles", detail: "10 each way" },
+        { name: "Hip hinges", detail: "10 reps" },
+        { name: "Thoracic rotation", detail: "5 reps each side" },
         { name: "Dead bug", detail: "6 reps each side" },
       ];
-  if (options?.includeOptionalPelotonBurst) {
-    warmupExercises.unshift({
-      name: "Optional Peloton easy spin",
-      detail: "2 min easy pace",
-    });
-  }
   return {
     id: newWorkoutBlockId(),
     kind: "warmup",

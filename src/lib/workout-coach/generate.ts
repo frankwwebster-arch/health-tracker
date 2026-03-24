@@ -69,8 +69,13 @@ function focusWorkoutExerciseComplexity(blocks: WorkoutCoachBlock[]): WorkoutCoa
     // Keep warm-up concise but never substitute from other blocks.
     if (b.blockType === "warmup_timed" || b.kind === "warmup") {
       const hasPelotonSpin = b.exercises.some((ex) => ex.name === PELOTON_WARMUP_NAME);
-      const warmupCap = hasPelotonSpin ? 4 : 5;
-      return { ...b, exercises: b.exercises.slice(0, warmupCap) };
+      if (hasPelotonSpin) {
+        // With optional spin, warm-up must be exactly 4 exercises.
+        return { ...b, exercises: b.exercises.slice(0, 4) };
+      }
+      // Without spin, keep between 5 and 6 exercises.
+      const trimmed = b.exercises.slice(0, 6);
+      return { ...b, exercises: trimmed.length >= 5 ? trimmed : b.exercises };
     }
 
     // Main blocks stay block-appropriate; reduce clutter by trimming count only.
@@ -106,7 +111,11 @@ function coachTimedEdgeMinutes(workoutId: string, salt: number): 4 | 5 | 6 {
 }
 
 function buildWarmupBlock(workoutId: string, includeOptionalPelotonBurst: boolean): WorkoutCoachBlock {
-  return createDefaultWarmupBlock(coachTimedEdgeMinutes(workoutId, 0), {
+  const base = coachTimedEdgeMinutes(workoutId, 0);
+  const warmupMinutes: 4 | 5 | 6 = includeOptionalPelotonBurst
+    ? 4
+    : (base === 4 ? 5 : base);
+  return createDefaultWarmupBlock(warmupMinutes, {
     includeOptionalPelotonBurst,
   });
 }
