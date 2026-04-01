@@ -6,7 +6,6 @@ import { LayoutHeader } from "@/components/LayoutHeader";
 import { DateSelector } from "@/components/today/DateSelector";
 import { MorningSection } from "@/components/today/MorningSection";
 import { MedicationSection } from "@/components/today/MedicationSection";
-import { FoodWaterSection } from "@/components/today/FoodWaterSection";
 import { MovementSection } from "@/components/today/MovementSection";
 import { WeightSection } from "@/components/today/WeightSection";
 import { EveningSection } from "@/components/today/EveningSection";
@@ -18,10 +17,41 @@ import { MigrationBanner } from "@/components/MigrationBanner";
 import { StreakBanner } from "@/components/today/StreakBanner";
 import type { ReminderType } from "@/components/reminders/ReminderContext";
 import { getDateKey } from "@/types";
+import type { DayData } from "@/types";
 import { useSync } from "@/components/SyncContext";
+
+type TodayModuleId = "weight" | "sleep" | "movement" | "supplements_meds" | "food";
+
+const TODAY_MODULES_STORAGE_KEY = "today.modules.v1";
+const DEFAULT_TODAY_MODULES: TodayModuleId[] = ["weight", "sleep"];
+const ALL_TODAY_MODULES: { id: TodayModuleId; label: string }[] = [
+  { id: "weight", label: "Weight" },
+  { id: "sleep", label: "Sleep" },
+  { id: "movement", label: "Movement" },
+  { id: "supplements_meds", label: "Supplements & Meds" },
+  { id: "food", label: "Food" },
+];
+
+function parseStoredTodayModules(raw: string | null): TodayModuleId[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const valid = parsed.filter((v): v is TodayModuleId =>
+      ALL_TODAY_MODULES.some((m) => m.id === v)
+    );
+    return valid.length > 0 ? valid : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function TodayPage() {
   const [selectedDateKey, setSelectedDateKey] = useState(getDateKey());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [modulePickerOpen, setModulePickerOpen] = useState(false);
+  const [modulesLoaded, setModulesLoaded] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<TodayModuleId[]>(DEFAULT_TODAY_MODULES);
   const { data, update, refresh } = useTodayData(selectedDateKey);
   const { settings } = useSettings();
   const isToday = selectedDateKey === getDateKey();
@@ -33,6 +63,18 @@ export default function TodayPage() {
   useEffect(() => {
     syncRef.current = sync;
   }, [sync]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const parsed = parseStoredTodayModules(window.localStorage.getItem(TODAY_MODULES_STORAGE_KEY));
+    setSelectedModules(parsed ?? DEFAULT_TODAY_MODULES);
+    setModulesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!modulesLoaded || typeof window === "undefined") return;
+    window.localStorage.setItem(TODAY_MODULES_STORAGE_KEY, JSON.stringify(selectedModules));
+  }, [modulesLoaded, selectedModules]);
 
   // Full sync once on first load
   useEffect(() => {
@@ -126,7 +168,46 @@ export default function TodayPage() {
     }));
   };
 
-  if (!data || isSyncing) {
+  const addModule = (id: TodayModuleId) => {
+    setSelectedModules((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
+  const removeModule = (id: TodayModuleId) => {
+    setSelectedModules((prev) => prev.filter((m) => m !== id));
+  };
+
+  const renderModule = (id: TodayModuleId, currentData: DayData) => {
+    switch (id) {
+      case "weight":
+        return <WeightSection data={currentData} update={update} />;
+      case "sleep":
+        return (
+          <>
+            <MorningSection data={currentData} update={update} />
+            <EveningSection data={currentData} update={update} />
+          </>
+        );
+      case "movement":
+        return <MovementSection data={currentData} update={update} dateKey={selectedDateKey} />;
+      case "supplements_meds":
+        return <MedicationSection data={currentData} settings={settings} update={update} />;
+      case "food":
+        return (
+          <section className="mb-10">
+            <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
+              Food
+            </h2>
+            <div className="rounded-2xl border border-border bg-white p-4 shadow-card">
+              <p className="text-sm text-muted">Food module coming soon.</p>
+            </div>
+          </section>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (!data || isSyncing || !modulesLoaded) {
     return (
       <>
         <LayoutHeader title="Today" />
@@ -155,23 +236,88 @@ export default function TodayPage() {
       <StreakBanner />
       <main className="max-w-lg mx-auto px-4 pt-6 pb-24">
         <DateSelector dateKey={selectedDateKey} onDateChange={setSelectedDateKey} />
-        <MorningSection data={data} update={update} />
-        <MedicationSection data={data} settings={settings} update={update} />
-        <FoodWaterSection
-          data={data}
-          dateKey={selectedDateKey}
-          update={update}
-          settings={settings}
-        />
-        <MovementSection data={data} update={update} dateKey={selectedDateKey} />
-        <WeightSection data={data} update={update} />
-        <EveningSection data={data} update={update} />
+        {selectedModules.map((moduleId) => {
+          const moduleMeta = ALL_TODAY_MODULES.find((m) => m.id === moduleId);
+          return (
+            <div key={moduleId}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  {moduleMeta?.label ?? "Module"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => removeModule(moduleId)}
+                  className="text-xs font-medium text-muted hover:text-gray-800"
+                >
+                  Remove
+                </button>
+              </div>
+              {renderModule(moduleId, data)}
+            </div>
+          );
+        })}
+        {selectedModules.length === 0 && (
+          <section className="mb-10 rounded-2xl border border-dashed border-border bg-white p-4">
+            <p className="text-sm text-muted">No modules selected yet.</p>
+          </section>
+        )}
+        <section className="mb-10">
+          <button
+            type="button"
+            onClick={() => setModulePickerOpen(true)}
+            className="w-full min-h-[48px] rounded-2xl border border-border bg-white text-sm font-semibold text-gray-700 shadow-card hover:shadow-card-hover"
+          >
+            + Add module
+          </button>
+        </section>
         <DailySummary
           data={data}
           waterGoal={settings?.waterGoalMl ?? 2000}
           customMedIds={(settings?.customMeds ?? []).map((m) => m.id)}
         />
       </main>
+      {modulePickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-module-title"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-4 shadow-xl">
+            <p id="add-module-title" className="font-semibold text-gray-900 mb-3">
+              Add module
+            </p>
+            <div className="space-y-2">
+              {ALL_TODAY_MODULES.map((moduleOption) => {
+                const alreadyAdded = selectedModules.includes(moduleOption.id);
+                return (
+                  <button
+                    key={moduleOption.id}
+                    type="button"
+                    disabled={alreadyAdded}
+                    onClick={() => addModule(moduleOption.id)}
+                    className={`w-full min-h-[44px] rounded-xl border px-3 text-sm font-medium text-left ${
+                      alreadyAdded
+                        ? "border-accent/30 bg-accent-soft/50 text-muted"
+                        : "border-border bg-white text-gray-800 hover:bg-gray-50"
+                    }`}
+                  >
+                    {moduleOption.label}
+                    {alreadyAdded ? " (Added)" : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setModulePickerOpen(false)}
+              className="mt-3 w-full min-h-[44px] rounded-xl text-sm font-medium border border-border text-gray-700"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
