@@ -1,17 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lastAttemptAt, setLastAttemptAt] = useState(0);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/today");
+    }
+  }, [authLoading, user, router]);
+
+  const getFriendlyAuthError = (message?: string) => {
+    const m = (message ?? "").toLowerCase();
+    if (
+      m.includes("rate") ||
+      m.includes("too many") ||
+      m.includes("email rate exceeded")
+    ) {
+      return "Too many login attempts. Please wait a minute and try again.";
+    }
+    return "We couldn't send your magic link right now. Please try again in a moment.";
+  };
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    const now = Date.now();
+    if (now - lastAttemptAt < 5000) {
+      setError("Please wait a few seconds before trying again.");
+      return;
+    }
+    setLastAttemptAt(now);
     setError(null);
     setLoading(true);
     const supabase = createClient();
@@ -28,11 +59,21 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(getFriendlyAuthError(err.message));
       return;
     }
     setSent(true);
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-surface">
+        <p className="text-sm text-muted">Restoring your session…</p>
+      </div>
+    );
+  }
+
+  if (user) return null;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-surface">

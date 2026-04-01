@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -33,6 +34,7 @@ export { LOCAL_STORAGE_SCOPE };
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const migratedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -42,33 +44,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let cancelled = false;
+    let bootstrapResolved = false;
 
-    const bootstrap = async () => {
-      await migrateLegacyFlatKeysOnce();
-      const {
-        data: { user: initial },
-      } = await supabase.auth.getUser();
+    const applyUser = async (nextUser: User | null) => {
       if (cancelled) return;
-      if (initial?.id) {
-        await migrateLocalScopeToUserIfNeeded(initial.id);
+      if (nextUser?.id && migratedUserIdRef.current !== nextUser.id) {
+        migratedUserIdRef.current = nextUser.id;
+        await migrateLocalScopeToUserIfNeeded(nextUser.id);
       }
       if (cancelled) return;
-      setUser(initial ?? null);
+      if (!nextUser?.id) {
+        migratedUserIdRef.current = null;
+      }
+      setUser(nextUser);
       setLoading(false);
     };
-
-    void bootstrap();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-      if (u?.id) {
-        await migrateLocalScopeToUserIfNeeded(u.id);
-      }
-      setUser(u);
-      setLoading(false);
+      // Covers magic-link return, refresh events, and later token/session changes.
+      bootstrapResolved = true;
+      await applyUser(session?.user ?? null);
     });
+
+    const bootstrap = async () => {
+      await migrateLegacyFlatKeysOnce();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled || bootstrapResolved) return;
+      await applyUser(session?.user ?? null);
+    };
+
+    void bootstrap();
 
     return () => {
       cancelled = true;
