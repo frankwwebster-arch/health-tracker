@@ -61,15 +61,15 @@ export interface GenerateWorkoutResult {
 }
 
 function focusWorkoutExerciseComplexity(blocks: WorkoutCoachBlock[]): WorkoutCoachBlock[] {
-  const PELOTON_WARMUP_NAME = "Optional Peloton easy spin";
+  const SPIN_WARMUP_NAME = "Light spin";
   return blocks.map((b) => {
     // Keep cooldown intact.
     if (b.blockType === "cooldown_timed" || b.kind === "cooldown") return b;
 
     // Keep warm-up concise but never substitute from other blocks.
     if (b.blockType === "warmup_timed" || b.kind === "warmup") {
-      const hasPelotonSpin = b.exercises.some((ex) => ex.name === PELOTON_WARMUP_NAME);
-      if (hasPelotonSpin) {
+      const hasSpin = b.exercises.some((ex) => ex.name === SPIN_WARMUP_NAME);
+      if (hasSpin) {
         // With optional spin, warm-up must be exactly 4 exercises.
         return { ...b, exercises: b.exercises.slice(0, 4) };
       }
@@ -204,7 +204,8 @@ export function generateWorkout(ctx: GenerateContext): GenerateWorkoutResult {
   const recoveryMode = recoveryModeOpt === true;
 
   const bootcampToday = todayHasBootcampLike(today);
-  const includeOptionalPelotonBurst = !bootcampToday;
+  // Optional spin appears occasionally, not as a default.
+  const includeOptionalPelotonBurst = !bootcampToday && Math.random() < 0.3;
   const strengthYesterday =
     yesterday != null &&
     ((yesterday.workoutMinutes != null && yesterday.workoutMinutes >= 20) ||

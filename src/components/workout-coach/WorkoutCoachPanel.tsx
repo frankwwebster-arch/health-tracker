@@ -45,6 +45,7 @@ import {
 } from "@/lib/workout-coach/live-session";
 import {
   extractQuickTimerPresetsFromBlock,
+  formatExerciseLineConcise,
   fixedRoundsBlockHeader,
   isAmrapOrKbLadderBlock,
   isFixedRoundsBlock,
@@ -556,6 +557,11 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     return timedBlockDisplayTitle(block, idx);
   }
 
+  function upcomingTitleForBlock(block: (typeof blocksForSession)[number], idx: number): string {
+    if (isFixedRoundsBlock(block)) return fixedRoundsBlockHeader(block, idx);
+    return timedBlockDisplayTitle(block, idx);
+  }
+
   return (
     <div className="relative min-h-[100dvh] w-full max-w-md mx-auto touch-manipulation">
       {process.env.NODE_ENV !== "production" && (
@@ -713,7 +719,33 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
                   <CollapsedBlock key={block.id} title={collapsedTitleForBlock(block, idx)} />
                 );
               }
-              if (idx > activeBlockIndex) return null;
+              if (idx > activeBlockIndex) {
+                return (
+                  <div
+                    key={block.id}
+                    className="rounded-2xl border border-slate-200 bg-white/70 p-3 opacity-70"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Upcoming
+                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-bold text-slate-700 leading-snug">
+                        {upcomingTitleForBlock(block, idx)}
+                      </h3>
+                      <span className="text-[10px] font-bold text-slate-400 shrink-0 tabular-nums pt-0.5">
+                        {idx + 1}/{blocksForSession.length}
+                      </span>
+                    </div>
+                    <ul className="mt-2 space-y-1">
+                      {block.exercises.map((ex, i) => (
+                        <li key={i} className="text-xs text-slate-600">
+                          {formatExerciseLineConcise(ex)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
               if (
                 liveSession.restTimer?.active &&
                 liveSession.restTimer.sourceBlockId === block.id &&

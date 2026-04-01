@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type {
   AmrapTimedLiveState,
   StructuredRoundsLiveState,
@@ -13,7 +13,6 @@ import type {
 import {
   fixedRoundsBlockHeader,
   formatExerciseLineConcise,
-  isFixedRoundsBlock,
   timedBlockDisplayTitle,
 } from "@/lib/workout-coach/block-labels";
 import {
@@ -54,7 +53,6 @@ type BaseProps = {
   blocks: WorkoutCoachBlock[];
   index: number;
   total: number;
-  nextBlockTitle?: string;
   session: WorkoutCoachLiveSession;
   onSession: SessionUpdater;
 };
@@ -117,7 +115,6 @@ function TimedWorkBlock({
   session,
   onSession,
   variant,
-  nextBlockTitle,
 }: BaseProps & {
   live: WarmupCooldownTimedLiveState;
   variant: "warmup" | "cooldown";
@@ -167,6 +164,8 @@ function TimedWorkBlock({
 
   const done = live.status === "completed";
   const title = timedBlockDisplayTitle(block, index);
+  const isFinalBlock = index === total - 1;
+  const advanceLabel = variant === "cooldown" && isFinalBlock ? "Finish workout" : "Next block";
 
   return (
     <div
@@ -229,19 +228,16 @@ function TimedWorkBlock({
           onClick={handleSkip}
           className="mt-2 w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
         >
-          Skip
+          {advanceLabel}
         </button>
       )}
       {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
-      {nextBlockTitle && (
-        <p className="mt-2 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
-      )}
       </div>
     </div>
   );
 }
 
-function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
+function AmrapTimedBlock({ block, blocks, index, total, live, session, onSession }: BaseProps & { live: AmrapTimedLiveState }) {
   const rem = deriveTimedRemainingSeconds(live);
   const done = live.status === "completed";
 
@@ -345,13 +341,10 @@ function AmrapTimedBlock({ block, blocks, index, total, nextBlockTitle, live, se
             onClick={handleSkip}
             className="mt-2 w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
           >
-            Skip
+            Next block
           </button>
         )}
         {done && <p className="text-center text-xs font-bold text-emerald-800 py-1">Done</p>}
-        {nextBlockTitle && (
-          <p className="mt-2 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
-        )}
       </div>
     </div>
   );
@@ -365,8 +358,8 @@ function StructuredRoundsBlock({
   live,
   session,
   onSession,
-  nextBlockTitle,
 }: BaseProps & { live: StructuredRoundsLiveState }) {
+  const [extraRoundTapped, setExtraRoundTapped] = useState(false);
   const patch = useCallback(
     (next: StructuredRoundsLiveState) => {
       onSession(patchStructuredState(session, block.id, next));
@@ -374,12 +367,9 @@ function StructuredRoundsBlock({
     [block.id, onSession, session]
   );
 
-  const handleStartBlock = () => {
-    patch({ ...live, status: "active", extraRoundState: "unavailable" });
-  };
-
-  const handleRoundDone = () => {
-    if (live.status !== "active") return;
+  const handleRoundSegmentTap = (segmentIndex: number) => {
+    if (segmentIndex !== live.completedRounds) return;
+    if (live.completedRounds >= live.targetRounds) return;
     const next = live.completedRounds + 1;
     if (next >= live.targetRounds) {
       patch({
@@ -389,7 +379,11 @@ function StructuredRoundsBlock({
         extraRoundState: "available",
       });
     } else {
-      patch({ ...live, completedRounds: next });
+      patch({
+        ...live,
+        completedRounds: next,
+        status: "active",
+      });
     }
   };
 
@@ -397,16 +391,11 @@ function StructuredRoundsBlock({
     onSession(structuredStartRest(session, block.id, blocks));
   };
 
-  const handleDoExtraRound = () => {
-    patch({
-      ...live,
-      status: "extra_round_in_progress",
-      extraRoundState: "in_progress",
-    });
-  };
-
   const handleExtraRoundComplete = () => {
-    onSession(structuredCompleteExtraRoundAndStartRest(session, block.id, blocks));
+    setExtraRoundTapped(true);
+    window.setTimeout(() => {
+      onSession(structuredCompleteExtraRoundAndStartRest(session, block.id, blocks));
+    }, 120);
   };
 
   const handleSkip = () => {
@@ -414,11 +403,8 @@ function StructuredRoundsBlock({
   };
 
   const pendingDecision = live.status === "rounds_complete_pending_decision";
-  const inExtraRound = live.status === "extra_round_in_progress";
-  const nextIsCooldown = blocks[index + 1]?.blockType === "cooldown_timed";
-  const showMainRoundButton =
-    live.status === "not_started" ||
-    (live.status === "active" && live.completedRounds < live.targetRounds);
+  const roundsComplete = live.completedRounds >= live.targetRounds;
+  const canTapNextRound = !pendingDecision && !roundsComplete;
 
   return (
     <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-1 min-w-0 max-w-full">
@@ -435,7 +421,7 @@ function StructuredRoundsBlock({
             {index + 1}/{total}
           </span>
         </div>
-        {live.status === "active" && live.completedRounds < live.targetRounds && (
+        {!roundsComplete && (
           <p className="text-xs font-bold text-emerald-900">
             Round {live.completedRounds + 1} / {live.targetRounds}
           </p>
@@ -448,64 +434,65 @@ function StructuredRoundsBlock({
           ))}
         </ul>
 
-        {showMainRoundButton && (
-          <button
-            type="button"
-            onClick={live.status === "not_started" ? handleStartBlock : handleRoundDone}
-            className="w-full min-h-[52px] rounded-2xl bg-emerald-700 text-white text-base font-extrabold active:scale-[0.99]"
-          >
-            {live.status === "not_started"
-              ? "Start block"
-              : `Round ${live.completedRounds + 1} done`}
-          </button>
+        <div className="flex items-center gap-2" role="group" aria-label="Round progress">
+          {Array.from({ length: live.targetRounds }).map((_, idxSegment) => {
+            const isCompleted = idxSegment < live.completedRounds;
+            const isNext = idxSegment === live.completedRounds;
+            const isDisabled = !canTapNextRound || !isNext;
+            return (
+              <button
+                key={`segment-${idxSegment}`}
+                type="button"
+                onClick={() => handleRoundSegmentTap(idxSegment)}
+                disabled={isDisabled}
+                className={`flex-1 min-h-[36px] rounded-lg border-2 transition-colors ${
+                  isCompleted
+                    ? "border-emerald-600 bg-emerald-600"
+                    : "border-emerald-300 bg-white"
+                } ${
+                  isDisabled ? "cursor-default opacity-70" : "active:scale-[0.99]"
+                }`}
+                aria-label={`Round ${idxSegment + 1} of ${live.targetRounds}`}
+              />
+            );
+          })}
+        </div>
+
+        {roundsComplete && (
+          <p className="text-sm font-extrabold text-emerald-950 text-center">Rounds complete</p>
         )}
 
         {pendingDecision && (
           <div className="space-y-2 pt-2 border-t border-emerald-200">
-            <p className="text-sm font-extrabold text-emerald-950 text-center">Rounds complete</p>
-            {!nextIsCooldown && (
-              <button
-                type="button"
-                onClick={handleBeginRest}
-                className="w-full min-h-[48px] rounded-2xl bg-red-600 text-white font-extrabold text-sm hover:bg-red-700 active:scale-[0.99]"
-              >
-                Begin rest
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleDoExtraRound}
-              className="w-full min-h-[48px] rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/80 text-emerald-950 font-bold text-sm active:scale-[0.99]"
-            >
-              Do extra round
-            </button>
-          </div>
-        )}
-        {inExtraRound && (
-          <div className="space-y-2 pt-2 border-t border-emerald-200">
-            <p className="text-sm text-center text-emerald-900">
-              Extra round in progress — finish when ready.
-            </p>
             <button
               type="button"
               onClick={handleExtraRoundComplete}
-              className="w-full min-h-[48px] rounded-2xl bg-emerald-700 text-white font-extrabold text-sm active:scale-[0.99]"
+              disabled={extraRoundTapped}
+              className={`w-full min-h-[48px] rounded-2xl text-sm font-extrabold active:scale-[0.99] ${
+                extraRoundTapped
+                  ? "bg-emerald-600 text-white"
+                  : "border-2 border-dashed border-emerald-500 bg-emerald-50/80 text-emerald-950"
+              }`}
             >
-              Extra round
+              Extra Round
+            </button>
+            <button
+              type="button"
+              onClick={handleBeginRest}
+              className="w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
+            >
+              Next block
             </button>
           </div>
         )}
-        {live.status !== "completed" && (
+        {live.status !== "completed" && !pendingDecision && (
           <button
             type="button"
             onClick={handleSkip}
             className="w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
           >
-            Skip
+            Next block
           </button>
-        )}
-        {nextBlockTitle && (
-          <p className="pt-1 text-xs text-slate-500 text-center">Next: {nextBlockTitle}</p>
         )}
       </div>
     </div>
@@ -522,12 +509,6 @@ export function LiveBlockRouter({
   onSession,
 }: BaseProps & { live: WorkoutCoachBlockLiveState }) {
   const normalized = normalizeLiveForRouter(live);
-  const next = blocks[index + 1];
-  const nextBlockTitle = next
-    ? isFixedRoundsBlock(next)
-      ? fixedRoundsBlockHeader(next, index + 1)
-      : timedBlockDisplayTitle(next, index + 1)
-    : undefined;
   switch (normalized.blockType) {
     case "warmup_timed":
       return (
@@ -536,7 +517,6 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
-          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
@@ -550,7 +530,6 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
-          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
@@ -559,7 +538,7 @@ export function LiveBlockRouter({
       );
     case "amrap_timed":
       return (
-        <AmrapTimedBlock block={block} blocks={blocks} index={index} total={total} nextBlockTitle={nextBlockTitle} live={normalized} session={session} onSession={onSession} />
+        <AmrapTimedBlock block={block} blocks={blocks} index={index} total={total} live={normalized} session={session} onSession={onSession} />
       );
     case "structured_rounds":
       return (
@@ -568,7 +547,6 @@ export function LiveBlockRouter({
           blocks={blocks}
           index={index}
           total={total}
-          nextBlockTitle={nextBlockTitle}
           live={normalized}
           session={session}
           onSession={onSession}
@@ -627,7 +605,7 @@ export function RestTimerDock({
         onClick={skip}
         className="w-full min-h-[40px] rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold active:scale-[0.99]"
       >
-        Skip
+        Next block
       </button>
     </div>
   );

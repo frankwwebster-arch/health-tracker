@@ -34,22 +34,27 @@ export function createDefaultWarmupBlock(
 ): WorkoutCoachBlock {
   const m = clampWarmupCooldownMinutes(minutes);
   const sec = m * 60;
+  const movementPool: WorkoutCoachBlock["exercises"] = [
+    { name: "Bodyweight squats", detail: "10 reps" },
+    { name: "Shoulder circles", detail: "10 each way" },
+    { name: "Hip hinges", detail: "10 reps" },
+    { name: "Thoracic rotation", detail: "5 reps each side" },
+    { name: "Dead bug", detail: "6 reps each side" },
+    { name: "Cat-cow", detail: "6 reps" },
+    { name: "Down dog to up dog", detail: "6 reps" },
+    { name: "World's greatest stretch", detail: "4 reps each side" },
+    { name: "Glute bridge", detail: "10 reps" },
+    { name: "Push-ups", detail: "8 reps — knees if preferred" },
+  ];
+  const shuffled = [...movementPool].sort(() => Math.random() - 0.5);
   const includePeloton = options?.includeOptionalPelotonBurst === true;
-  // Keep warm-up focused and compact so total workout variety stays manageable.
+  // Keep warm-up focused and compact while varying choices each generation.
   const warmupExercises: WorkoutCoachBlock["exercises"] = includePeloton
     ? [
-        { name: "Optional Peloton easy spin", detail: "2 min easy pace" },
-        { name: "Bodyweight squats", detail: "10 reps" },
-        { name: "Shoulder circles", detail: "10 each way" },
-        { name: "World's greatest stretch", detail: "4 reps each side" },
+        { name: "Light spin", detail: "2 min" },
+        ...shuffled.slice(0, 3),
       ]
-    : [
-        { name: "Bodyweight squats", detail: "10 reps" },
-        { name: "Shoulder circles", detail: "10 each way" },
-        { name: "Hip hinges", detail: "10 reps" },
-        { name: "Thoracic rotation", detail: "5 reps each side" },
-        { name: "Dead bug", detail: "6 reps each side" },
-      ];
+    : shuffled.slice(0, 5 + (Math.random() < 0.5 ? 0 : 1));
   return {
     id: newWorkoutBlockId(),
     kind: "warmup",
@@ -68,6 +73,18 @@ export function createCooldownBlock(
 ): WorkoutCoachBlock {
   const m = clampWarmupCooldownMinutes(minutes);
   const sec = m * 60;
+  const cooldownPool: WorkoutCoachBlock["exercises"] = [
+    { name: "Hamstring stretch", detail: "30s each leg" },
+    { name: "Hip flexor stretch", detail: "30s each side" },
+    { name: "Chest opener", detail: "30s" },
+    { name: "Spinal rotation", detail: "30s each side" },
+    { name: "Child's pose", detail: "45s — slow breaths" },
+    { name: "Calf stretch", detail: "30s each side" },
+    { name: "90/90 hip stretch", detail: "30s each side" },
+  ];
+  const cooldownExercises = [...cooldownPool]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 5);
   return {
     id: `cooldown-${workoutId}`,
     kind: "cooldown",
@@ -75,12 +92,6 @@ export function createCooldownBlock(
     title: `Cool-down — ${m} min`,
     minutes: m,
     durationSeconds: sec,
-    exercises: [
-      { name: "Hamstring stretch", detail: "30s each leg" },
-      { name: "Hip flexor stretch", detail: "30s each side" },
-      { name: "Chest opener", detail: "30s" },
-      { name: "Spinal rotation", detail: "30s each side" },
-      { name: "Child's pose", detail: "45s — slow breaths" },
-    ],
+    exercises: cooldownExercises,
   };
 }
