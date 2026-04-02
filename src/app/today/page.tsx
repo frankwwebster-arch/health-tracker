@@ -5,10 +5,10 @@ import { useTodayData, useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { DateSelector } from "@/components/today/DateSelector";
 import { MorningSection } from "@/components/today/MorningSection";
-import { MedicationSection } from "@/components/today/MedicationSection";
 import { MovementSection } from "@/components/today/MovementSection";
 import { WeightSection } from "@/components/today/WeightSection";
 import { EveningSection } from "@/components/today/EveningSection";
+import { SupplementsMedsModule } from "@/components/today/SupplementsMedsModule";
 import { DailySummary } from "@/components/today/DailySummary";
 import { ReminderBanners } from "@/components/reminders/ReminderBanners";
 import { ReminderScheduler } from "@/components/reminders/ReminderScheduler";
@@ -53,7 +53,7 @@ export default function TodayPage() {
   const [modulesLoaded, setModulesLoaded] = useState(false);
   const [selectedModules, setSelectedModules] = useState<TodayModuleId[]>(DEFAULT_TODAY_MODULES);
   const { data, update, refresh } = useTodayData(selectedDateKey);
-  const { settings } = useSettings();
+  const { settings, setSettings } = useSettings();
   const isToday = selectedDateKey === getDateKey();
   const pelotonAutoSyncDone = useRef<Set<string>>(new Set());
   const sync = useSync();
@@ -190,7 +190,15 @@ export default function TodayPage() {
       case "movement":
         return <MovementSection data={currentData} update={update} dateKey={selectedDateKey} />;
       case "supplements_meds":
-        return <MedicationSection data={currentData} settings={settings} update={update} />;
+        return (
+          <SupplementsMedsModule
+            data={currentData}
+            dateKey={selectedDateKey}
+            settings={settings}
+            setSettings={setSettings}
+            update={update}
+          />
+        );
       case "food":
         return (
           <section className="mb-10">

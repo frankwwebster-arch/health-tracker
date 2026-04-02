@@ -14,6 +14,14 @@ export interface WaterLogEntry {
   timestamp: number;
 }
 
+export interface SupplementsMedsLogEntry {
+  id: string;
+  itemId: string;
+  /** For timing-important doses; null for simple once-per-day logs. */
+  slotId: string | null;
+  takenAt: number;
+}
+
 /** Single Peloton workout session (synced or manual) */
 export interface PelotonWorkoutSession {
   id: string;
@@ -61,6 +69,8 @@ export interface DayData {
   sentimentMidday: number | null;
   sentimentEvening: number | null;
   customMedsTaken: Record<string, MedicationEntry>; // id -> { taken, takenAt }
+  /** Supplements & Meds daily intake logs (local-first). */
+  supplementsMedsLogEntries?: SupplementsMedsLogEntry[];
   /** Workout Coach: generated session + post-workout log (syncs with day JSON) */
   workoutCoach?: WorkoutCoachDayState;
 }
@@ -256,11 +266,20 @@ export interface UserProfile {
 export interface UserMedicationDefinition {
   id: string;
   name: string;
-  /** Reminder times as HH:mm */
+  /** Human-friendly dose label, e.g. "200mg" or "1 tablet". */
+  dose?: string;
+  /** Free-text cadence, e.g. "daily" or "twice daily". */
+  frequency?: string;
+  /** Whether schedule/timing detail should be shown and tracked explicitly. */
+  timingImportant?: boolean;
+  /** Optional remaining stock count. */
+  stockRemaining?: number | null;
+  /** Expected dose slots for the day as HH:mm. */
+  scheduleSlots?: string[];
+
+  /** Legacy fields kept for compatibility with older settings data. */
   scheduleTimes: string[];
   dosesPerDay: number;
-  /** Free-text cadence (e.g. "with meals") */
-  frequency?: string;
   dosageNotes?: string;
   supplyCount?: number;
   active: boolean;
@@ -407,6 +426,7 @@ export function createEmptyDayData(): DayData {
     sentimentMidday: null,
     sentimentEvening: null,
     customMedsTaken: {},
+    supplementsMedsLogEntries: [],
   };
 }
 
