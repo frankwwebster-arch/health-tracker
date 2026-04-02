@@ -27,12 +27,22 @@ export default function CoachWorkoutReviewPage() {
   const params = useParams<{ entryId: string }>();
   const searchParams = useSearchParams();
   const dateKey = searchParams.get("date") ?? getDateKey();
+  const isLegacyEntry = searchParams.get("legacy") === "1";
   const { data } = useTodayData(dateKey);
 
   const entry = useMemo(
     () => (data?.coachWorkoutEntries ?? []).find((x) => x.id === params.entryId),
     [data?.coachWorkoutEntries, params.entryId]
   );
+
+  const legacyCoachMinutes = useMemo(() => {
+    if (!data) return null;
+    const sessions = data.workoutSessions ?? [];
+    const pelotonTotal = sessions.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
+    const remainder =
+      data.workoutMinutes == null ? null : Math.max(0, data.workoutMinutes - pelotonTotal);
+    return data.workoutCoach?.postLog?.garminDurationMin ?? remainder;
+  }, [data]);
 
   if (!data) {
     return (
@@ -45,7 +55,7 @@ export default function CoachWorkoutReviewPage() {
     );
   }
 
-  if (!entry) {
+  if (!entry && !isLegacyEntry) {
     return (
       <>
         <LayoutHeader title="Workout Review" />
@@ -58,9 +68,11 @@ export default function CoachWorkoutReviewPage() {
       </>
     );
   }
-
-  const snapshotBlocks = entry.reviewSnapshot?.blocks ?? [];
-  const snapshotStates = entry.reviewSnapshot?.blockStates ?? {};
+  const snapshotBlocks = entry?.reviewSnapshot?.blocks ?? [];
+  const snapshotStates = entry?.reviewSnapshot?.blockStates ?? {};
+  const summaryLabel = entry?.label ?? "Coach";
+  const summaryMinutes = entry?.minutes ?? legacyCoachMinutes ?? 0;
+  const summaryCreatedAt = entry?.createdAt ?? toMsFromDateKeyNoon(dateKey);
 
   return (
     <>
@@ -68,9 +80,9 @@ export default function CoachWorkoutReviewPage() {
       <main className="max-w-md mx-auto px-3 sm:px-4 pt-4 pb-10 space-y-4">
         <section className="rounded-2xl border-2 border-violet-300 bg-violet-50 p-4">
           <p className="text-[10px] font-bold uppercase tracking-wider text-violet-800">Completed</p>
-          <h1 className="text-lg font-extrabold text-violet-950 mt-0.5">{entry.label} workout</h1>
+          <h1 className="text-lg font-extrabold text-violet-950 mt-0.5">{summaryLabel} workout</h1>
           <p className="text-sm text-violet-900/90 mt-1">
-            {new Date(entry.createdAt).toLocaleString("en-GB", {
+            {new Date(summaryCreatedAt).toLocaleString("en-GB", {
               day: "2-digit",
               month: "short",
               hour: "2-digit",
@@ -78,7 +90,7 @@ export default function CoachWorkoutReviewPage() {
             })}
           </p>
           <p className="mt-2 inline-flex rounded-full border border-violet-300 bg-white px-3 py-1 text-sm font-semibold text-violet-900">
-            Total time {entry.minutes} min
+            Total time {summaryMinutes} min
           </p>
         </section>
 
@@ -154,4 +166,9 @@ export default function CoachWorkoutReviewPage() {
       </main>
     </>
   );
+}
+
+function toMsFromDateKeyNoon(dateKey: string): number {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0).getTime();
 }

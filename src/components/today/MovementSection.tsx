@@ -218,14 +218,16 @@ export function MovementSection({ data, update, dateKey }: Props) {
           )}
           {/* Legacy single coach display fallback for older data entries. */}
           {showLegacyCoachMovement && (
-            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/90 p-3">
-              <div className="flex min-w-0 items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border border-border bg-white text-gray-800">
-                <span className="text-muted shrink-0">Coach:</span>
-                <span className="tabular-nums font-semibold text-gray-900" aria-label="Coach workout minutes">
-                  {coachMinutesReadOnly != null ? `${coachMinutesReadOnly} min` : "—"}
-                </span>
-              </div>
-            </div>
+            <Link
+              href={`/coach/review/legacy?date=${encodeURIComponent(dateKey)}&legacy=1`}
+              className="mt-2 block rounded-xl border border-emerald-800 bg-emerald-800 px-3 py-2.5 text-white shadow-sm hover:bg-emerald-700/90 active:bg-emerald-700"
+              aria-label={`Open review for completed legacy coach workout ${coachMinutesReadOnly ?? 0} minutes`}
+            >
+              <p className="text-sm font-semibold">
+                Coach · {coachMinutesReadOnly != null ? `${coachMinutesReadOnly} min` : "—"}
+              </p>
+              <p className="text-xs text-emerald-100">Completed · Tap to review</p>
+            </Link>
           )}
 
           {hasSessions && (
