@@ -474,6 +474,15 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
           minutes,
           createdAt: Date.now(),
           sessionRefId: workout?.id,
+          reviewSnapshot: workout
+            ? {
+                blocks: normalizeWorkoutBlocks(workout.blocks, {
+                  id: workout.id,
+                  generatedAt: workout.generatedAt,
+                }),
+                blockStates: { ...(coach.liveSession?.blockStates ?? {}) },
+              }
+            : undefined,
         },
       ],
       workoutCoach: {

@@ -42,6 +42,11 @@ export interface CoachWorkoutEntry {
   createdAt: number;
   /** Optional reference for future per-session review. */
   sessionRefId?: string;
+  /** Read-only review payload for this saved workout. */
+  reviewSnapshot?: {
+    blocks: WorkoutCoachBlock[];
+    blockStates: Record<string, WorkoutCoachBlockLiveState>;
+  };
 }
 
 export interface DayData {

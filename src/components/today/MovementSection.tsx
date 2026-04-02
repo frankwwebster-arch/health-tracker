@@ -201,6 +201,12 @@ export function MovementSection({ data, update, dateKey }: Props) {
                       Saved {new Date(entry.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
+                  <Link
+                    href={`/coach/review/${entry.id}?date=${encodeURIComponent(dateKey)}`}
+                    className="shrink-0 min-h-[40px] inline-flex items-center px-3 rounded-lg text-xs font-semibold text-accent bg-white border border-white/70 hover:bg-white/90"
+                  >
+                    Review
+                  </Link>
                   <button
                     type="button"
                     onClick={() => deleteCoachEntry(entry.id)}

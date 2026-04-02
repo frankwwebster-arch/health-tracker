@@ -26,7 +26,7 @@ type EditState = {
   frequency: string;
   timingImportant: boolean;
   stockRemaining: string;
-  slotsText: string;
+  slots: string[];
 };
 
 function formatHmFromMs(ms: number): string {
@@ -43,15 +43,6 @@ function toMsForDateKeyTime(dateKey: string, hhmm: string): number {
 function toTimeInput(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function parseSlots(raw: string): string[] {
-  const parts = raw
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .filter((x) => /^\d{2}:\d{2}$/.test(x));
-  return Array.from(new Set(parts)).sort();
 }
 
 function normalizeSuppMedsItems(settings: Settings | null): UserMedicationDefinition[] {
@@ -133,11 +124,13 @@ export function SupplementsMedsModule({
         frequency: "daily",
         timingImportant: false,
         stockRemaining: "",
-        slotsText: "09:00",
+        slots: ["09:00"],
       });
       return;
     }
-    const slots = (item.scheduleSlots ?? item.scheduleTimes ?? []).join(", ");
+    const slots = (item.scheduleSlots ?? item.scheduleTimes ?? []).filter((x) =>
+      /^\d{2}:\d{2}$/.test(x)
+    );
     setEditState({
       id: item.id,
       name: item.name,
@@ -150,7 +143,7 @@ export function SupplementsMedsModule({
           : item.supplyCount != null
             ? String(item.supplyCount)
             : "",
-      slotsText: slots || "09:00",
+      slots: slots.length > 0 ? slots : ["09:00"],
     });
   };
 
@@ -158,7 +151,9 @@ export function SupplementsMedsModule({
     if (!editState || !settings) return;
     const trimmedName = editState.name.trim();
     if (!trimmedName) return;
-    const scheduleSlots = parseSlots(editState.slotsText);
+    const scheduleSlots = Array.from(
+      new Set(editState.slots.filter((x) => /^\d{2}:\d{2}$/.test(x)))
+    ).sort();
     const normalizedSlots = editState.timingImportant
       ? scheduleSlots.length > 0
         ? scheduleSlots
@@ -261,9 +256,17 @@ export function SupplementsMedsModule({
                   </div>
 
                   {!item.timingImportant && (
-                    <p className="mt-2 text-sm text-muted">
-                      {simpleLog ? `Taken at ${formatHmFromMs(simpleLog.takenAt)}` : "Not taken"}
-                    </p>
+                    <div className="mt-2">
+                      {simpleLog ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                          Taken at {formatHmFromMs(simpleLog.takenAt)}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 border border-slate-200">
+                          Not taken
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   {item.timingImportant && (
@@ -272,8 +275,15 @@ export function SupplementsMedsModule({
                         const slotId = `${item.id}:${slot}`;
                         const log = findLatestLog(item.id, slotId);
                         return (
-                          <li key={slotId} className="flex items-center justify-between gap-2 text-sm">
-                            <span className="text-gray-700">
+                          <li
+                            key={slotId}
+                            className={`flex items-center justify-between gap-2 text-sm rounded-lg border px-2 py-1.5 ${
+                              log
+                                ? "bg-emerald-50 border-emerald-200"
+                                : "bg-white border-slate-200"
+                            }`}
+                          >
+                            <span className={log ? "text-emerald-900" : "text-gray-700"}>
                               <span className="font-medium">{slot}</span>
                               {" — "}
                               {log ? `taken at ${formatHmFromMs(log.takenAt)}` : "not logged"}
@@ -307,14 +317,16 @@ export function SupplementsMedsModule({
             </p>
             <label className="mt-3 block">
               <span className="text-sm text-gray-700">Taken at</span>
-              <input
-                type="time"
-                value={confirmState.timeValue}
-                onChange={(e) =>
-                  setConfirmState((prev) => (prev ? { ...prev, timeValue: e.target.value } : prev))
-                }
-                className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800"
-              />
+              <div className="mt-1 w-full max-w-[180px]">
+                <input
+                  type="time"
+                  value={confirmState.timeValue}
+                  onChange={(e) =>
+                    setConfirmState((prev) => (prev ? { ...prev, timeValue: e.target.value } : prev))
+                  }
+                  className="block w-full rounded-xl border border-border px-2.5 py-2 text-sm text-gray-800"
+                />
+              </div>
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
@@ -455,16 +467,44 @@ export function SupplementsMedsModule({
                 />
               </label>
               {editState.timingImportant && (
-                <label className="block">
-                  <span className="text-sm text-gray-700">Dose slots (HH:mm, comma-separated)</span>
-                  <input
-                    type="text"
-                    value={editState.slotsText}
-                    onChange={(e) => setEditState({ ...editState, slotsText: e.target.value })}
-                    placeholder="08:00, 12:00, 16:00"
-                    className="mt-1 block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800"
-                  />
-                </label>
+                <div className="rounded-xl border border-border p-3 space-y-2">
+                  <span className="text-sm text-gray-700 block">Dose times</span>
+                  {editState.slots.map((slot, idx) => (
+                    <div key={`slot-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={slot}
+                        onChange={(e) => {
+                          const next = [...editState.slots];
+                          next[idx] = e.target.value;
+                          setEditState({ ...editState, slots: next });
+                        }}
+                        className="block w-full rounded-xl border border-border px-3 py-2.5 text-gray-800"
+                      />
+                      {editState.slots.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditState({
+                              ...editState,
+                              slots: editState.slots.filter((_, i) => i !== idx),
+                            })
+                          }
+                          className="shrink-0 rounded-lg border border-red-200 px-2 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditState({ ...editState, slots: [...editState.slots, "09:00"] })}
+                    className="text-sm font-medium text-accent hover:underline"
+                  >
+                    + Add dose time
+                  </button>
+                </div>
               )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
