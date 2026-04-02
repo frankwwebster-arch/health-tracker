@@ -85,7 +85,10 @@ export default function CoachWorkoutReviewPage() {
         {snapshotBlocks.length === 0 && (
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-sm text-slate-700">
-              No detailed block snapshot was saved for this workout entry.
+              Coach workout summary only for this entry.
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Detailed review is available for newly completed workouts.
             </p>
           </section>
         )}

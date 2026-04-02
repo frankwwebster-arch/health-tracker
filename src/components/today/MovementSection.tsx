@@ -191,26 +191,24 @@ export function MovementSection({ data, update, dateKey }: Props) {
               {coachEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex flex-wrap items-center gap-2 rounded-xl border border-accent bg-accent px-3 py-2.5 text-white text-sm shadow-sm"
+                  className="flex items-stretch gap-2 rounded-xl border border-emerald-800 bg-emerald-800 text-white text-sm shadow-sm overflow-hidden"
                 >
-                  <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/coach/review/${entry.id}?date=${encodeURIComponent(dateKey)}`}
+                    className="min-w-0 flex-1 block px-3 py-2.5 hover:bg-emerald-700/70 active:bg-emerald-700"
+                    aria-label={`Open review for ${entry.label} workout ${entry.minutes} minutes`}
+                  >
                     <p className="font-semibold">
                       {entry.label} · {entry.minutes} min
                     </p>
-                    <p className="text-xs text-white/85">
-                      Saved {new Date(entry.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    <p className="text-xs text-emerald-100">
+                      Completed {new Date(entry.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · Tap to review
                     </p>
-                  </div>
-                  <Link
-                    href={`/coach/review/${entry.id}?date=${encodeURIComponent(dateKey)}`}
-                    className="shrink-0 min-h-[40px] inline-flex items-center px-3 rounded-lg text-xs font-semibold text-accent bg-white border border-white/70 hover:bg-white/90"
-                  >
-                    Review
                   </Link>
                   <button
                     type="button"
                     onClick={() => deleteCoachEntry(entry.id)}
-                    className="shrink-0 min-h-[40px] px-3 rounded-lg text-xs font-semibold text-red-800 bg-white border border-red-200 hover:bg-red-50"
+                    className="m-2 shrink-0 min-h-[40px] px-3 rounded-lg text-xs font-semibold text-red-800 bg-white border border-red-200 hover:bg-red-50"
                   >
                     Delete
                   </button>
