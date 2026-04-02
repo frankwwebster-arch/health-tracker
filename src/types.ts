@@ -243,9 +243,6 @@ export interface WorkoutCoachSavedExercise {
   detail: string;
 }
 
-/** Product modules — enable/disable per user (see `MODULE_REGISTRY`). */
-export type AppModuleId = "health_tracker" | "workout_coach" | "medication";
-
 /** Profile shown in app; email may mirror auth. */
 export interface UserProfile {
   displayName: string | null;
@@ -296,8 +293,6 @@ export interface Settings {
   /** Bump when adding migrations in `migrateSettings` */
   settingsVersion?: number;
   profile?: UserProfile;
-  /** Modules visible in shell; defaults to all if missing (legacy). */
-  enabledModules?: AppModuleId[];
   /** User-configured medications (empty = rely on legacy fields + UI). */
   userMedications?: UserMedicationDefinition[];
   reminderPreferences?: ReminderPreferencesScaffold;
@@ -340,7 +335,6 @@ export interface CustomMed {
 export const DEFAULT_SETTINGS: Settings = {
   settingsVersion: 2,
   profile: { displayName: null, email: null },
-  enabledModules: ["health_tracker", "workout_coach", "medication"],
   userMedications: [],
   reminderPreferences: { globalEnabled: true, weekdayOnly: true },
   appPreferences: {},

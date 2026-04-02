@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSettings } from "@/hooks/useTodayData";
 import { LayoutHeader } from "@/components/LayoutHeader";
-import type { AppModuleId, Settings } from "@/types";
+import type { Settings } from "@/types";
 import {
   resetToday,
   getAllDayKeys,
@@ -16,8 +16,6 @@ import {
 import { useAuth, useStorageScope } from "@/components/AuthProvider";
 import { useSync } from "@/components/SyncContext";
 import { CAN_SYNC_HEALTH_DATA_TO_CLOUD } from "@/lib/privacy";
-import { MODULE_REGISTRY, defaultEnabledModules } from "@/lib/modules/registry";
-
 export default function SettingsPage() {
   const { settings, setSettings } = useSettings();
   const { user } = useAuth();
@@ -143,14 +141,6 @@ export default function SettingsPage() {
   const update = (patch: Partial<Settings>) => {
     setSettings({ ...settings, ...patch });
     setSaved(true);
-  };
-
-  const toggleModule = (id: AppModuleId) => {
-    const current = settings.enabledModules ?? defaultEnabledModules();
-    const next = current.includes(id)
-      ? current.filter((x) => x !== id)
-      : [...current, id];
-    update({ enabledModules: next });
   };
 
   const testNotification = async () => {
@@ -310,38 +300,6 @@ export default function SettingsPage() {
                 From your sign-in. We don&apos;t use it to store health data in the cloud.
               </p>
             </div>
-          </div>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
-            Modules
-          </h2>
-          <div className="space-y-2 rounded-2xl border border-border bg-white p-4 shadow-card">
-            <p className="text-sm text-muted mb-3">
-              Choose what appears in your app. You can change this anytime.
-            </p>
-            {(Object.keys(MODULE_REGISTRY) as AppModuleId[]).map((id) => {
-              const def = MODULE_REGISTRY[id];
-              const enabled = (settings.enabledModules ?? defaultEnabledModules()).includes(id);
-              return (
-                <label
-                  key={id}
-                  className="flex items-start justify-between gap-4 min-h-[44px] py-2 border-b border-border/60 last:border-0"
-                >
-                  <span>
-                    <span className="font-medium text-gray-800 block">{def.label}</span>
-                    <span className="text-xs text-muted">{def.shortDescription}</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={enabled}
-                    onChange={() => toggleModule(id)}
-                    className="w-5 h-5 mt-0.5 rounded border-gray-300 text-accent focus:ring-accent/30 shrink-0"
-                  />
-                </label>
-              );
-            })}
           </div>
         </section>
 

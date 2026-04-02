@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { AccountWidget } from "@/components/AccountWidget";
-import { ModuleGate } from "@/components/shell/ModuleGate";
 
 export function LayoutHeader({ title }: { title: string }) {
   return (
@@ -16,14 +15,12 @@ export function LayoutHeader({ title }: { title: string }) {
           >
             Today
           </Link>
-          <ModuleGate moduleId="workout_coach">
-            <Link
-              href="/coach"
-              className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
-            >
-              Coach
-            </Link>
-          </ModuleGate>
+          <Link
+            href="/coach"
+            className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"
+          >
+            Coach
+          </Link>
           <Link
             href="/dashboard"
             className="px-3 py-2 rounded-lg text-muted hover:text-gray-800 hover:bg-accent-soft text-sm font-medium"

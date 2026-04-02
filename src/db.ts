@@ -5,8 +5,6 @@ import {
   getDateKey,
   DEFAULT_SETTINGS,
 } from "@/types";
-import { defaultEnabledModules } from "@/lib/modules/registry";
-
 const DAYS_STORE = "health-days";
 
 /** Anonymous / device-local scope id */
@@ -205,8 +203,8 @@ function migrateSettings(s: Settings): Settings {
     if (typeof r.gensSinceThruster !== "number") r.gensSinceThruster = def.workoutCoachRotation.gensSinceThruster;
     if (typeof r.generationsSinceLadder !== "number") r.generationsSinceLadder = def.workoutCoachRotation.generationsSinceLadder;
   }
-  if (!merged.enabledModules?.length) {
-    merged.enabledModules = defaultEnabledModules();
+  if ("enabledModules" in merged) {
+    delete (merged as Record<string, unknown>).enabledModules;
   }
   if (!merged.profile) {
     merged.profile = { displayName: null, email: null };
