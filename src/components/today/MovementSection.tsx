@@ -18,7 +18,6 @@ interface Props {
 export function MovementSection({ data, update, dateKey }: Props) {
   const [pelotonSyncing, setPelotonSyncing] = useState(false);
   const [pelotonMessage, setPelotonMessage] = useState<string | null>(null);
-  const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState(false);
   const [swimModalOpen, setSwimModalOpen] = useState(false);
   const [otherModalOpen, setOtherModalOpen] = useState(false);
 
@@ -41,11 +40,13 @@ export function MovementSection({ data, update, dateKey }: Props) {
           return remainder > 0 ? remainder : null;
         })();
 
+  const coachEntries = data.coachWorkoutEntries ?? [];
+  const hasCoachEntries = coachEntries.length > 0;
   const hasCoachPostLog = data.workoutCoach?.postLog != null;
   /** Saved Workout Coach duration — read-only on Today (from post-log or coach portion of day total). */
   const coachMinutesReadOnly: number | null =
     data.workoutCoach?.postLog?.garminDurationMin ?? manualWorkoutMinutesForUi ?? null;
-  const showCoachMovement = hasCoachPostLog || coachMinutesReadOnly != null;
+  const showLegacyCoachMovement = !hasCoachEntries && (hasCoachPostLog || coachMinutesReadOnly != null);
 
   const golfOn = data.workoutCoach?.golfToday === true;
   const swimMin = data.manualSwimMinutes ?? null;
@@ -57,16 +58,7 @@ export function MovementSection({ data, update, dateKey }: Props) {
     otherAct != null;
 
   const hasSavedWorkout =
-    data.workoutMinutes != null || hasSessions || hasPhaseAMovement;
-
-  const hasManualWorkoutEntry = !hasSessions
-    ? data.workoutMinutes != null
-    : manualWorkoutMinutesForUi != null;
-  const hasPlatformWorkoutToDelete = hasManualWorkoutEntry || hasCoachPostLog;
-
-  useEffect(() => {
-    if (!hasPlatformWorkoutToDelete) setPendingDeleteWorkout(false);
-  }, [hasPlatformWorkoutToDelete]);
+    data.workoutMinutes != null || hasSessions || hasPhaseAMovement || hasCoachEntries;
 
   const handleSyncFromPeloton = async () => {
     setPelotonSyncing(true);
@@ -113,6 +105,24 @@ export function MovementSection({ data, update, dateKey }: Props) {
         golfToday: !prev.workoutCoach?.golfToday,
       },
     }));
+  };
+
+  const deleteCoachEntry = (entryId: string) => {
+    update((prev) => {
+      const currentEntries = prev.coachWorkoutEntries ?? [];
+      const removed = currentEntries.find((x) => x.id === entryId);
+      const nextEntries = currentEntries.filter((x) => x.id !== entryId);
+      const removedMinutes = removed?.minutes ?? 0;
+      const nextWorkoutMinutes =
+        prev.workoutMinutes == null
+          ? null
+          : Math.max(0, prev.workoutMinutes - removedMinutes);
+      return {
+        ...prev,
+        workoutMinutes: nextWorkoutMinutes === 0 ? null : nextWorkoutMinutes,
+        coachWorkoutEntries: nextEntries,
+      };
+    });
   };
 
   return (
@@ -175,74 +185,42 @@ export function MovementSection({ data, update, dateKey }: Props) {
             </button>
           </div>
 
-          {/* Workout Coach — read-only saved duration; delete + confirm grouped here (above Peloton) */}
-          {showCoachMovement && (
+          {/* Workout Coach entries — saved sessions, each deletable independently */}
+          {hasCoachEntries && (
             <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/90 p-3 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
+              {coachEntries.map((entry) => (
                 <div
-                  className={`flex min-w-0 flex-1 items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border ${
-                    hasCoachPostLog
-                      ? "bg-accent text-white border-accent shadow-sm"
-                      : "border-border bg-white text-gray-800"
-                  }`}
+                  key={entry.id}
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-accent bg-accent px-3 py-2.5 text-white text-sm shadow-sm"
                 >
-                  <span className={hasCoachPostLog ? "text-white/90 shrink-0" : "text-muted shrink-0"}>
-                    Coach:
-                  </span>
-                  <span
-                    className={`tabular-nums font-semibold ${hasCoachPostLog ? "text-white" : "text-gray-900"}`}
-                    aria-label="Coach workout minutes"
-                  >
-                    {coachMinutesReadOnly != null ? `${coachMinutesReadOnly} min` : "—"}
-                  </span>
-                </div>
-                {hasPlatformWorkoutToDelete && !pendingDeleteWorkout && (
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">
+                      {entry.label} · {entry.minutes} min
+                    </p>
+                    <p className="text-xs text-white/85">
+                      Saved {new Date(entry.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setPendingDeleteWorkout(true)}
-                    className="shrink-0 min-h-[44px] px-3 rounded-xl text-sm font-medium text-red-700 hover:text-red-900 hover:bg-red-50 border border-red-200"
+                    onClick={() => deleteCoachEntry(entry.id)}
+                    className="shrink-0 min-h-[40px] px-3 rounded-lg text-xs font-semibold text-red-800 bg-white border border-red-200 hover:bg-red-50"
                   >
                     Delete
                   </button>
-                )}
-              </div>
-              {hasPlatformWorkoutToDelete && pendingDeleteWorkout && (
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
-                  <span className="text-sm text-amber-800 font-medium">Delete this workout?</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      update((prev) => {
-                        const sess = prev.workoutSessions ?? [];
-                        const pelotonSum = sess.reduce(
-                          (sum, s) => sum + (s.durationMinutes ?? 0),
-                          0
-                        );
-                        const keepPeloton = sess.length > 0 && pelotonSum > 0;
-                        return {
-                          ...prev,
-                          workoutMinutes: keepPeloton ? pelotonSum : null,
-                          workoutCoach: {
-                            ...prev.workoutCoach,
-                            postLog: null,
-                          },
-                        };
-                      });
-                      setPendingDeleteWorkout(false);
-                    }}
-                    className="min-h-[44px] px-4 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.99]"
-                  >
-                    Confirm delete
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeleteWorkout(false)}
-                    className="min-h-[44px] px-4 rounded-xl text-sm font-medium border border-border bg-white text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
                 </div>
-              )}
+              ))}
+            </div>
+          )}
+          {/* Legacy single coach display fallback for older data entries. */}
+          {showLegacyCoachMovement && (
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/90 p-3">
+              <div className="flex min-w-0 items-center gap-2 min-h-[44px] px-3 py-2.5 rounded-xl text-sm font-medium border border-border bg-white text-gray-800">
+                <span className="text-muted shrink-0">Coach:</span>
+                <span className="tabular-nums font-semibold text-gray-900" aria-label="Coach workout minutes">
+                  {coachMinutesReadOnly != null ? `${coachMinutesReadOnly} min` : "—"}
+                </span>
+              </div>
             </div>
           )}
 

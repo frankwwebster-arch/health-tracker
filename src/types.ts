@@ -34,6 +34,16 @@ export interface PelotonWorkoutSession {
   instructor?: string;
 }
 
+export interface CoachWorkoutEntry {
+  id: string;
+  type: "coach";
+  label: string;
+  minutes: number;
+  createdAt: number;
+  /** Optional reference for future per-session review. */
+  sessionRefId?: string;
+}
+
 export interface DayData {
   medication: {
     dex: MultiDoseMedication;
@@ -55,6 +65,8 @@ export interface DayData {
   workoutMinutes: number | null; // total minutes (from presets or Peloton sessions)
   /** Per-session breakdown when synced from Peloton or multiple workouts */
   workoutSessions?: PelotonWorkoutSession[];
+  /** Saved Workout Coach entries (multiple per day supported). */
+  coachWorkoutEntries?: CoachWorkoutEntry[];
   /** Phase A — manual swim minutes (Today); separate from Peloton / Coach `workoutMinutes` */
   manualSwimMinutes?: number | null;
   /** Phase A — manual named activity + minutes (not reusable presets yet) */
@@ -416,6 +428,7 @@ export function createEmptyDayData(): DayData {
     workoutMinutes: null,
     manualSwimMinutes: null,
     manualOtherActivity: null,
+    coachWorkoutEntries: [],
     walkDone: false,
     stepsCount: null,
     weightKg: null,

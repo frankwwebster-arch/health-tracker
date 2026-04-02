@@ -464,7 +464,18 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
     const minutes = computeSavedWorkoutMinutes(coach.liveSession, workoutTotalMin);
     update((prev) => ({
       ...prev,
-      workoutMinutes: minutes,
+      workoutMinutes: (prev.workoutMinutes ?? 0) + minutes,
+      coachWorkoutEntries: [
+        ...(prev.coachWorkoutEntries ?? []),
+        {
+          id: `coach-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "coach",
+          label: "Coach",
+          minutes,
+          createdAt: Date.now(),
+          sessionRefId: workout?.id,
+        },
+      ],
       workoutCoach: {
         ...prev.workoutCoach,
         workout: null,
@@ -472,7 +483,7 @@ export function WorkoutCoachPanel({ data, update, dateKey }: Props) {
         liveSession: null,
       },
     }));
-  }, [coach.liveSession, workoutTotalMin, update]);
+  }, [coach.liveSession, workout?.id, workoutTotalMin, update]);
 
   const handleDiscardWorkout = () => {
     setCoach({ workout: null, postLog: null, liveSession: null });

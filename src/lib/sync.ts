@@ -38,6 +38,7 @@ function isEmptyDay(data: DayData): boolean {
     d.waterMl === 0 &&
     d.workoutMinutes == null &&
     (d.workoutSessions?.length ?? 0) === 0 &&
+    (d.coachWorkoutEntries?.length ?? 0) === 0 &&
     d.manualSwimMinutes == null &&
     d.manualOtherActivity == null &&
     !d.walkDone &&
